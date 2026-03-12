@@ -1,0 +1,122 @@
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Customer, Address
+from .serializers import CustomerSerializer, AddressSerializer
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+
+import requests
+CART_SERVICE_URL = "http://cart-service:8000"
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CustomerListCreate(APIView):
+    def get(self, request):
+        customers = Customer.objects.all()
+        return Response(CustomerSerializer(customers, many=True).data)
+
+    def post(self, request):
+        serializer = CustomerSerializer(data=request.data)
+        if Customer.objects.filter(email=request.data.get('email')).exists():
+            return Response({"error": "Email already exists"}, status=400)
+        if serializer.is_valid():
+            customer = Customer.objects.create(
+                name=request.data['name'],
+                email=request.data['email'],
+                password=request.data.get('password', '123456'),
+            )
+            try:
+                requests.post(f"{CART_SERVICE_URL}/carts/", json={"customer_id": customer.id})
+            except Exception:
+                pass
+            return Response(CustomerSerializer(customer).data, status=201)
+        return Response(serializer.errors, status=400)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CustomerDetail(APIView):
+    def get(self, request, pk):
+        try:
+            customer = Customer.objects.get(pk=pk)
+            return Response(CustomerSerializer(customer).data)
+        except Customer.DoesNotExist:
+            return Response({'error': 'Not found'}, status=404)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginView(APIView):
+    def post(self, request):
+        email = request.data.get('email')
+        password = request.data.get('password')
+        try:
+            customer = Customer.objects.get(email=email)
+            if customer.password == password:
+                return Response(CustomerSerializer(customer).data)
+            return Response({"error": "Invalid password"}, status=401)
+        except Customer.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AddressListCreate(APIView):
+    """GET/POST /customers/<customer_id>/addresses/"""
+    def get(self, request, customer_id):
+        try:
+            customer = Customer.objects.get(pk=customer_id)
+        except Customer.DoesNotExist:
+            return Response({'error': 'Customer not found'}, status=404)
+        addresses = customer.addresses.all()
+        return Response(AddressSerializer(addresses, many=True).data)
+
+    def post(self, request, customer_id):
+        try:
+            customer = Customer.objects.get(pk=customer_id)
+        except Customer.DoesNotExist:
+            return Response({'error': 'Customer not found'}, status=404)
+        data = request.data.copy()
+        data['customer'] = customer_id
+        serializer = AddressSerializer(data=data)
+        if serializer.is_valid():
+            address = serializer.save()
+            print(f"[customer-service] New address for customer {customer_id}: {address}")
+            return Response(AddressSerializer(address).data, status=201)
+        return Response(serializer.errors, status=400)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AddressDetail(APIView):
+    """PUT/DELETE /customers/<customer_id>/addresses/<pk>/"""
+    def _get_address(self, customer_id, pk):
+        try:
+            return Address.objects.get(pk=pk, customer_id=customer_id)
+        except Address.DoesNotExist:
+            return None
+
+    def put(self, request, customer_id, pk):
+        address = self._get_address(customer_id, pk)
+        if not address:
+            return Response({'error': 'Not found'}, status=404)
+        data = request.data.copy()
+        data['customer'] = customer_id
+        serializer = AddressSerializer(address, data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def delete(self, request, customer_id, pk):
+        address = self._get_address(customer_id, pk)
+        if not address:
+            return Response({'error': 'Not found'}, status=404)
+        address.delete()
+        return Response(status=204)
+
+    def patch(self, request, customer_id, pk):
+        """Set this address as default."""
+        address = self._get_address(customer_id, pk)
+        if not address:
+            return Response({'error': 'Not found'}, status=404)
+        address.is_default = True
+        address.save()
+        return Response(AddressSerializer(address).data)

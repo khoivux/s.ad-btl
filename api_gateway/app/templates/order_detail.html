@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmed - MicroBookstore</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;600;700&family=Rubik:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen flex flex-col">
+    {% include 'navbar.html' %}
+    <main class="flex-grow flex items-center justify-center p-6">
+    <div class="max-w-2xl w-full">
+
+        <!-- Success Banner -->
+        <div class="text-center mb-10">
+            <div class="text-7xl mb-4">🎉</div>
+            <h1 class="text-4xl font-black font-sans text-indigo-600 mb-2">Order Confirmed!</h1>
+            <p class="text-slate-500">Your order has been placed and payment processed successfully.</p>
+        </div>
+
+        <!-- Order Info -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                <div>
+                    <p class="text-slate-500 text-sm mb-1">Order ID</p>
+                    <p class="text-2xl font-black text-slate-900">#{{ order.id }}</p>
+                </div>
+                <div>
+                    <p class="text-slate-500 text-sm mb-1">Status</p>
+                    <span class="inline-block bg-indigo-100 text-indigo-700 font-bold px-3 py-1 rounded-full text-sm uppercase">{{ order.status }}</span>
+                </div>
+                <div>
+                    <p class="text-slate-500 text-sm mb-1">Total Amount</p>
+                    <p class="text-2xl font-black text-indigo-600">${{ order.total_amount }}</p>
+                </div>
+                <div>
+                    <p class="text-slate-500 text-sm mb-1">Date</p>
+                    <p class="font-bold text-slate-900">{{ order.created_at|slice:":10" }}</p>
+                </div>
+            </div>
+
+            {% if shipment %}
+            <!-- Progress Bar -->
+            <div class="mb-8 pt-4 border-t border-slate-100">
+                <h3 class="text-lg font-bold mb-4 text-slate-800">🚚 Shipping Tracker</h3>
+                
+                <div class="relative flex items-center justify-between w-full mb-6">
+                    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 z-0"></div>
+                    <div class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-indigo-500 z-0 transition-all duration-500" 
+                         style="width: {% if shipment.status == 'waiting' %}0%{% elif shipment.status == 'packing' %}33%{% elif shipment.status == 'in_transit' %}66%{% else %}100%{% endif %};"></div>
+                    
+                    <div class="z-10 bg-white px-2 text-center flex flex-col items-center gap-2">
+                        <div class="w-8 h-8 rounded-full border-4 {% if shipment.status in 'waiting,packing,in_transit,delivered' %}border-indigo-500 bg-indigo-500 text-white{% else %}border-slate-300 bg-white{% endif %} flex items-center justify-center font-bold text-xs">✓</div>
+                        <span class="text-xs font-bold {% if shipment.status in 'waiting,packing,in_transit,delivered' %}text-indigo-600{% else %}text-slate-400{% endif %}">Pending</span>
+                    </div>
+                    <div class="z-10 bg-white px-2 text-center flex flex-col items-center gap-2">
+                        <div class="w-8 h-8 rounded-full border-4 {% if shipment.status in 'packing,in_transit,delivered' %}border-indigo-500 bg-indigo-500 text-white{% else %}border-slate-300 bg-white text-slate-300{% endif %} flex items-center justify-center font-bold text-xs">✓</div>
+                        <span class="text-xs font-bold {% if shipment.status in 'packing,in_transit,delivered' %}text-indigo-600{% else %}text-slate-400{% endif %}">Packing</span>
+                    </div>
+                    <div class="z-10 bg-white px-2 text-center flex flex-col items-center gap-2">
+                        <div class="w-8 h-8 rounded-full border-4 {% if shipment.status in 'in_transit,delivered' %}border-indigo-500 bg-indigo-500 text-white{% else %}border-slate-300 bg-white text-slate-300{% endif %} flex items-center justify-center font-bold text-xs">✓</div>
+                        <span class="text-xs font-bold {% if shipment.status in 'in_transit,delivered' %}text-indigo-600{% else %}text-slate-400{% endif %}">Shipping</span>
+                    </div>
+                    <div class="z-10 bg-white px-2 text-center flex flex-col items-center gap-2">
+                        <div class="w-8 h-8 rounded-full border-4 {% if shipment.status == 'delivered' %}border-green-500 bg-green-500 text-white{% else %}border-slate-300 bg-white text-slate-300{% endif %} flex items-center justify-center font-bold text-xs">✓</div>
+                        <span class="text-xs font-bold {% if shipment.status == 'delivered' %}text-green-600{% else %}text-slate-400{% endif %}">Delivered</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 bg-indigo-50 rounded-xl p-4 border border-indigo-100">
+                    <div>
+                        <p class="text-slate-500 text-xs uppercase font-bold">Tracking Code</p>
+                        <p class="font-black text-indigo-700">{{ shipment.tracking_code|default:"Pending" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-500 text-xs uppercase font-bold">Estimated Delivery</p>
+                        <p class="font-black text-slate-800">{{ shipment.estimated_delivery|slice:":10"|default:"TBD" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-500 text-xs uppercase font-bold">Method</p>
+                        <p class="font-black text-slate-800 capitalize">{{ shipment.shipping_method|default:"Standard" }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Items -->
+            <div class="border-t border-slate-200 pt-6">
+                <h3 class="text-lg font-bold mb-4 text-indigo-600">📦 Order Items</h3>
+                <div class="space-y-3">
+                    {% for item in order.items %}
+                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <div>
+                            <p class="font-bold text-slate-800">{{ item.book_title }}</p>
+                            <p class="text-slate-500 text-sm">Qty: {{ item.quantity }} × ${{ item.unit_price }}</p>
+                        </div>
+                        <p class="font-bold text-indigo-600">${{ item.subtotal }}</p>
+                    </div>
+                    {% endfor %}
+                    
+                    <div class="flex justify-between items-center p-3">
+                        <p class="font-bold text-slate-600">Shipping Fee</p>
+                        <p class="font-bold text-slate-800">${{ order.shipping_fee }}</p>
+                    </div>
+                    
+                    <div class="flex justify-between items-center p-3 border-t border-slate-200 mt-2">
+                        <p class="font-black text-slate-800 text-lg">Total Paid</p>
+                        <p class="font-black text-indigo-600 text-xl">${{ order.total_amount }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-4">
+            <a href="/orders/" class="flex-1 text-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-4 rounded-xl transition-all shadow-sm">
+                📋 Order History
+            </a>
+            <a href="/books/" class="flex-1 text-center bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-xl transition-all shadow-md">
+                🛒 Continue Shopping
+            </a>
+        </div>
+    </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroBookstore - Cart</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5', // vibrant indigo
+                        secondary: '#F59E0B', // energetic amber
+                        accent: '#E11D48', // bold rose
+                    },
+                    fontFamily: {
+                        sans: ['Nunito Sans', 'sans-serif'],
+                        heading: ['Rubik', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;500;600;700&family=Rubik:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+</head>
+
+<body class="bg-gray-50 text-slate-900 font-sans min-h-screen flex flex-col">
+
+    {% include 'navbar.html' %}
+
+    <!-- Main Content: Cart Items -->
+    <main class="max-w-4xl mx-auto px-4 py-12 flex-grow w-full">
+
+        <div class="mb-10 flex items-center gap-4">
+            <div class="h-12 w-12 bg-indigo-100 text-primary rounded-xl flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+            </div>
+            <h2 class="text-4xl font-heading font-extrabold text-slate-900">
+                Your Cart
+            </h2>
+        </div>
+
+        <div class="bg-white rounded-3xl p-6 md:p-8 border-4 border-gray-100 shadow-[8px_8px_0px_#e2e8f0]">
+
+            {% if items %}
+            <div class="divide-y-2 divide-gray-100">
+                {% for item in items %}
+                <div class="py-6 flex flex-col sm:flex-row items-center justify-between gap-6 group" data-subtotal="{{ item.subtotal }}">
+                    <div class="flex items-center gap-6 w-full sm:w-auto">
+                        <!-- Placeholder Image Box -->
+                        <div
+                            class="w-20 h-24 bg-purple-50 rounded-xl border-2 border-purple-100 flex items-center justify-center flex-shrink-0 group-hover:border-primary transition-colors">
+                            <span class="text-primary font-heading font-bold italic opacity-50">Book</span>
+                        </div>
+
+                        <div>
+                            <h3 class="text-xl font-heading font-bold text-slate-900 leading-snug">{{ item.title }}</h3>
+                            <p class="text-slate-500 font-medium">${{ item.price }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-8 w-full sm:w-auto justify-between sm:justify-end">
+                        <div class="flex flex-col items-center">
+                            <p class="text-xs font-bold text-slate-400 mb-1 uppercase tracking-wide">Qty</p>
+                            <input type="number" value="{{ item.quantity }}"
+                                class="bg-slate-100 text-slate-800 font-black text-lg py-1 px-2 rounded-full min-w-[3rem] w-20 text-center border-2 border-transparent focus:border-primary focus:outline-none"
+                                onchange="updateCartItem({{ item.id }}, this.value)" min="1">
+                        </div>
+
+                        <button onclick="deleteCartItem({{ item.id }})"
+                            class="text-slate-400 hover:text-red-500 transition-colors duration-200 cursor-pointer p-2 hover:bg-red-50 rounded-full"
+                            aria-label="Remove item">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- JavaScript functions for Cart updates -->
+            <script>
+                async function updateCartItem(itemId, quantity) {
+                    if (quantity < 1) return;
+                    try {
+                        const response = await fetch(`/api/carts/items/${itemId}/`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ quantity: quantity })
+                        });
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            alert('Failed to update quantity');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('An error occurred while updating the cart.');
+                    }
+                }
+
+                async function deleteCartItem(itemId) {
+                    if (!confirm('Are you sure you want to remove this item?')) return;
+                    try {
+                        const response = await fetch(`/api/carts/items/${itemId}/`, {
+                            method: 'DELETE',
+                        });
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            alert('Failed to remove item');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('An error occurred while removing the item.');
+                    }
+                }
+            </script>
+
+            <div class="mt-8 pt-8 border-t-4 border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-6">
+                <div>
+                    <p class="text-slate-500 font-medium">Subtotal (estimated)</p>
+                    <p id="cart-total" class="text-3xl font-black text-slate-900 mt-1">${{ total_cart_price|floatformat:2 }}</p>
+                </div>
+                <a href="/checkout/"
+                    class="w-full sm:w-auto bg-primary hover:bg-indigo-700 text-white font-bold py-4 px-10 rounded-full transition-transform hover:-translate-y-1 shadow-[4px_4px_0px_#1e1b4b] hover:shadow-[6px_6px_0px_#1e1b4b] text-lg active:translate-y-0 active:shadow-none duration-200 text-center">
+                    🛒 Checkout Now
+                </a>
+            </div>
+
+
+
+
+            {% else %}
+            <div class="text-center py-16 px-4">
+                <div
+                    class="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-heading font-extrabold text-slate-900 mb-2">Your cart is empty</h3>
+                <p class="text-slate-500 font-medium mb-8 max-w-md mx-auto">Looks like you haven't added any books yet.
+                    Let's find something great to read.</p>
+                <a href="/books/"
+                    class="inline-block bg-primary hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full transition-all hover:shadow-[4px_4px_0px_#1e1b4b] active:translate-y-1 active:shadow-none">
+                    Browse Books
+                </a>
+            </div>
+            {% endif %}
+
+        </div>
+    </main>
+
+</body>
+
+</html>

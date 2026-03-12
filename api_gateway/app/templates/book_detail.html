@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroBookstore - {{ book.title }}</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#F59E0B',
+                        accent: '#E11D48',
+                    },
+                    fontFamily: {
+                        sans: ['Nunito Sans', 'sans-serif'],
+                        heading: ['Rubik', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;500;600;700&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen">
+
+    {% include 'navbar.html' %}
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Breadcrumb -->
+    <nav class="mb-8 flex text-sm text-slate-500 font-medium">
+        <a href="/books/" class="hover:text-indigo-600 transition-colors">Books</a>
+        <span class="mx-2">/</span>
+        <span class="text-slate-800">{{ book.title }}</span>
+    </nav>
+
+    <!-- Book Details Section -->
+    <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mb-12">
+        <div class="grid grid-cols-1 md:grid-cols-12">
+            <!-- Image column -->
+            <div class="col-span-1 md:col-span-5 lg:col-span-4 bg-slate-50 p-8 flex items-center justify-center min-h-[400px]">
+                <div class="w-full max-w-xs aspect-[2/3] bg-indigo-100 rounded-xl shadow-lg flex items-center justify-center text-6xl shadow-indigo-200/50">
+                    📘
+                </div>
+            </div>
+
+            <!-- Info column -->
+            <div class="col-span-1 md:col-span-7 lg:col-span-8 p-8 md:p-12 flex flex-col">
+                <div class="flex items-center gap-3 mb-4 text-sm font-bold">
+                    <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full flex items-center gap-1">
+                        ★ {{ reviews_data.avg_rating }}
+                    </span>
+                    <span class="text-slate-500">({{ reviews_data.total_reviews }} reviews)</span>
+                </div>
+                
+                <h1 class="text-3xl md:text-5xl font-black text-slate-900 mb-2 font-heading tracking-tight leading-tight">{{ book.title }}</h1>
+                <p class="text-xl text-slate-500 mb-6">by {{ book.author }}</p>
+                
+                <div class="text-4xl font-black text-indigo-600 mb-8">${{ book.price }}</div>
+
+                <div class="flex flex-col sm:flex-row gap-4 mt-auto">
+                    <button onclick="addToCart({{ book.id }})" 
+                            class="flex-1 bg-white outline outline-2 outline-indigo-600 text-indigo-600 font-bold py-4 px-8 rounded-xl hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2">
+                        Add to Cart
+                    </button>
+                    <button class="flex-1 bg-indigo-600 text-white font-bold py-4 px-8 rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-1" onclick="alert('Dummy Buy Now - checkout not mapped')">
+                        Buy Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reviews Section -->
+    <section>
+        <div class="flex items-end justify-between mb-8">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 font-heading">Reviews</h2>
+                <p class="text-slate-500 mt-1">What our readers are saying</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Form / Status -->
+            <div class="lg:col-span-1">
+                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200 sticky top-6">
+                    {% if not customer_id %}
+                        <div class="text-center py-6 text-slate-500">
+                            <p class="mb-4">Please log in to leave a review</p>
+                            <a href="/login/?next=/books/{{ book.id }}/" class="text-indigo-600 font-bold hover:underline">Sign In</a>
+                        </div>
+                    {% elif not has_purchased %}
+                        <div class="text-center py-6 text-slate-500">
+                            <div class="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">🔒</div>
+                            <p class="font-bold text-slate-800 mb-1">Verified Purchase Only</p>
+                            <p class="text-sm">You must purchase this book to leave a review.</p>
+                        </div>
+                    {% else %}
+                        <!-- Review Form -->
+                        <h3 class="font-bold text-slate-800 mb-4">Write a Review</h3>
+                        <form id="reviewForm" onsubmit="submitReview(event, {{ book.id }})">
+                            <div class="mb-4">
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Rating</label>
+                                <div class="flex gap-2">
+                                    {% for i in "12345" %}
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="rating" value="{{ forloop.counter }}" class="peer sr-only" required>
+                                        <div class="w-10 h-10 rounded-full bg-white border-2 border-slate-200 peer-checked:border-amber-400 peer-checked:bg-amber-50 flex items-center justify-center text-slate-300 peer-checked:text-amber-500 transition-colors">
+                                            ★
+                                        </div>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Comment</label>
+                                <textarea name="comment" rows="4" class="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow" placeholder="Share your thoughts..."></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-colors">
+                                Submit Review
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- List -->
+            <div class="lg:col-span-2 space-y-4">
+                {% if reviews_data.reviews %}
+                    {% for review in reviews_data.reviews %}
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center rounded-full">
+                                    {{ review.customer_name|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <p class="font-bold text-slate-900">{{ review.customer_name }}</p>
+                                    <div class="flex text-amber-400 text-sm">
+                                        <!-- Note: this is a simple visual trick, better to loop properly in jinja if exact -->
+                                        {% for i in "12345" %}
+                                            {% if forloop.counter <= review.rating %}★{% else %}<span class="text-slate-200">★</span>{% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="text-sm text-slate-400">{{ review.created_at|slice:":10" }}</span>
+                        </div>
+                        <p class="text-slate-600 leading-relaxed">{{ review.comment }}</p>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-12 bg-white rounded-2xl border border-slate-200">
+                        <p class="text-slate-500">No reviews yet. Be the first to share your thoughts!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+    async function addToCart(bookId) {
+        try {
+            const response = await fetch(`/api/carts/items/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ book_id: bookId, quantity: 1 })
+            });
+
+            if (response.status === 401) {
+                window.location.href = '/login/?next=/books/';
+                return;
+            }
+
+            if (response.ok) {
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl translate-y-10 opacity-0 transition-all duration-300 z-50 flex items-center gap-3';
+                toast.innerHTML = '<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Added to cart';
+                document.body.appendChild(toast);
+                
+                requestAnimationFrame(() => {
+                    toast.classList.remove('translate-y-10', 'opacity-0');
+                });
+                
+                setTimeout(() => {
+                    toast.classList.add('translate-y-10', 'opacity-0');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            } else {
+                alert('Failed to add item to cart');
+            }
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+        }
+    }
+
+    async function submitReview(e, bookId) {
+        e.preventDefault();
+        const form = e.target;
+        const rating = form.rating.value;
+        const comment = form.comment.value;
+        
+        if (!rating) {
+            alert("Please select a rating.");
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/books/${bookId}/reviews/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rating: parseInt(rating), comment: comment })
+            });
+            if(res.ok) {
+                window.location.reload();
+            } else {
+                const data = await res.json();
+                alert(data.error || "Failed to submit review");
+            }
+        } catch (err) {
+            alert("Error submitting review");
+        }
+    }
+</script>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-12 py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm">
+            &copy; 2026 MicroBookstore. Built with microservices.
+        </div>
+    </footer>
+</body>
+</html>

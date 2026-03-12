@@ -1,0 +1,47 @@
+<!-- Header -->
+<header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <a href="/books/" class="text-2xl font-bold font-heading text-indigo-600 flex items-center gap-2">
+            <span class="text-3xl">📚</span> MicroBookstore
+        </a>
+        
+        <!-- Global Search Bar -->
+        <div class="hidden md:block flex-1 max-w-xl mx-8">
+            <form action="/search/" method="GET" class="relative">
+                <input type="text" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search books, authors..." 
+                    class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 transition-shadow">
+                <svg class="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </form>
+        </div>
+
+        <nav class="flex items-center gap-4 sm:gap-6">
+            {% if customer_name %}
+            <span class="font-medium text-slate-600 hidden sm:inline">Hello, {{ customer_name }}</span>
+            <a href="/orders/" class="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Orders</a>
+            <a href="/carts/{{ request.session.customer_id|default:'1' }}/" 
+                class="relative p-2 text-slate-600 hover:text-indigo-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+            </a>
+            <a href="/logout/" class="text-sm font-medium text-slate-600 hover:text-red-500 transition-colors">Logout</a>
+            {% else %}
+            <a href="/login/" class="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Sign In</a>
+            <a href="/register/" class="text-sm font-bold bg-indigo-600 text-white px-4 py-2 rounded-full hover:bg-indigo-700 transition-colors shadow-md">Register</a>
+            {% endif %}
+        </nav>
+    </div>
+</header>
+
+<!-- Mobile Search (Visible only on small screens) -->
+<div class="md:hidden bg-white p-4 border-b border-slate-200">
+    <form action="/search/" method="GET" class="relative">
+        <input type="text" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search books, authors..." 
+            class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50">
+        <svg class="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+    </form>
+</div>
