@@ -11,6 +11,13 @@ class Order(models.Model):
     customer_id = models.IntegerField()
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Loyalty & Discounts
+    membership_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    voucher_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    voucher_code = models.CharField(max_length=100, blank=True, default='')
+    points_generated = models.IntegerField(default=0)
+    
     shipping_address = models.TextField(blank=True, default='')
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     shipping_method = models.CharField(max_length=50, blank=True, default='')
@@ -33,3 +40,31 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"OrderItem #{self.id} - Book {self.book_id} x{self.quantity}"
+
+class Voucher(models.Model):
+    code = models.CharField(max_length=100, unique=True)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    is_percentage = models.BooleanField(default=False)
+    min_spend = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    min_points_level_id = models.IntegerField(null=True, blank=True, help_text="MembershipLevel ID from customer-service")
+    point_cost = models.IntegerField(default=0)
+    max_quantity = models.IntegerField(default=100)
+    redeemed_quantity = models.IntegerField(default=0)
+    is_public = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    expiry_date = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.code} ({self.redeemed_quantity}/{self.max_quantity})"
+
+class CustomerVoucher(models.Model):
+    customer_id = models.IntegerField()
+    voucher = models.ForeignKey(Voucher, on_delete=models.CASCADE, related_name='customer_vouchers')
+    is_used = models.BooleanField(default=False)
+    redeemed_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    order_id = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Customer {self.customer_id} - {self.voucher.code} (Used: {self.is_used})"

@@ -3,125 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Confirmed - MicroBookstore</title>
+    <title>Order Detail - MicroBookstore</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;600;700&family=Rubik:wght@700;800&display=swap" rel="stylesheet">
 </head>
-<body class="bg-slate-50 text-slate-900 font-sans min-h-screen flex flex-col">
-    {% include 'navbar.html' %}
-    <main class="flex-grow flex items-center justify-center p-6">
-    <div class="max-w-2xl w-full">
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen">
+{% include 'navbar.html' %}
 
-        <!-- Success Banner -->
-        <div class="text-center mb-10">
-            <div class="text-7xl mb-4">🎉</div>
-            <h1 class="text-4xl font-black font-sans text-indigo-600 mb-2">Order Confirmed!</h1>
-            <p class="text-slate-500">Your order has been placed and payment processed successfully.</p>
+<div class="max-w-5xl mx-auto px-4 py-12">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
+        <div>
+            <nav class="flex text-sm text-slate-500 mb-2">
+                <a href="/orders/" class="hover:text-indigo-600">My Orders</a>
+                <span class="mx-2">/</span>
+                <span class="font-bold text-slate-800">Order #{{ order.id }}</span>
+            </nav>
+            <div class="flex items-center gap-4">
+                <h1 class="text-3xl font-black text-slate-800">Order Details</h1>
+                <div class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider
+                    {% if order.status == 'delivered' %}bg-green-100 text-green-700
+                    {% elif order.status == 'cancelled' %}bg-red-100 text-red-700
+                    {% elif order.status == 'shipping' %}bg-blue-100 text-blue-700
+                    {% elif order.status == 'processing' %}bg-indigo-100 text-indigo-700
+                    {% else %}bg-amber-100 text-amber-700{% endif %}">
+                    {% if order.status == 'delivered' %}✅ Delivered
+                    {% elif order.status == 'cancelled' %}🚫 Cancelled
+                    {% elif order.status == 'shipping' %}🚚 Shipping
+                    {% elif order.status == 'processing' %}⚙️ Processing
+                    {% else %}⏳ {{ order.status|title }}{% endif %}
+                </div>
+            </div>
         </div>
 
-        <!-- Order Info -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 mb-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
-                <div>
-                    <p class="text-slate-500 text-sm mb-1">Order ID</p>
-                    <p class="text-2xl font-black text-slate-900">#{{ order.id }}</p>
-                </div>
-                <div>
-                    <p class="text-slate-500 text-sm mb-1">Status</p>
-                    <span class="inline-block bg-indigo-100 text-indigo-700 font-bold px-3 py-1 rounded-full text-sm uppercase">{{ order.status }}</span>
-                </div>
-                <div>
-                    <p class="text-slate-500 text-sm mb-1">Total Amount</p>
-                    <p class="text-2xl font-black text-indigo-600">${{ order.total_amount }}</p>
-                </div>
-                <div>
-                    <p class="text-slate-500 text-sm mb-1">Date</p>
-                    <p class="font-bold text-slate-900">{{ order.created_at|slice:":10" }}</p>
-                </div>
-            </div>
-
-            {% if shipment %}
-            <!-- Progress Bar -->
-            <div class="mb-8 pt-4 border-t border-slate-100">
-                <h3 class="text-lg font-bold mb-4 text-slate-800">🚚 Shipping Tracker</h3>
-                
-                <div class="relative flex items-center justify-between w-full mb-6">
-                    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 z-0"></div>
-                    <div class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-indigo-500 z-0 transition-all duration-500" 
-                         style="width: {% if shipment.status == 'waiting' %}0%{% elif shipment.status == 'packing' %}33%{% elif shipment.status == 'in_transit' %}66%{% else %}100%{% endif %};"></div>
-                    
-                    <div class="z-10 bg-white px-2 text-center flex flex-col items-center gap-2">
-                        <div class="w-8 h-8 rounded-full border-4 {% if shipment.status in 'waiting,packing,in_transit,delivered' %}border-indigo-500 bg-indigo-500 text-white{% else %}border-slate-300 bg-white{% endif %} flex items-center justify-center font-bold text-xs">✓</div>
-                        <span class="text-xs font-bold {% if shipment.status in 'waiting,packing,in_transit,delivered' %}text-indigo-600{% else %}text-slate-400{% endif %}">Pending</span>
-                    </div>
-                    <div class="z-10 bg-white px-2 text-center flex flex-col items-center gap-2">
-                        <div class="w-8 h-8 rounded-full border-4 {% if shipment.status in 'packing,in_transit,delivered' %}border-indigo-500 bg-indigo-500 text-white{% else %}border-slate-300 bg-white text-slate-300{% endif %} flex items-center justify-center font-bold text-xs">✓</div>
-                        <span class="text-xs font-bold {% if shipment.status in 'packing,in_transit,delivered' %}text-indigo-600{% else %}text-slate-400{% endif %}">Packing</span>
-                    </div>
-                    <div class="z-10 bg-white px-2 text-center flex flex-col items-center gap-2">
-                        <div class="w-8 h-8 rounded-full border-4 {% if shipment.status in 'in_transit,delivered' %}border-indigo-500 bg-indigo-500 text-white{% else %}border-slate-300 bg-white text-slate-300{% endif %} flex items-center justify-center font-bold text-xs">✓</div>
-                        <span class="text-xs font-bold {% if shipment.status in 'in_transit,delivered' %}text-indigo-600{% else %}text-slate-400{% endif %}">Shipping</span>
-                    </div>
-                    <div class="z-10 bg-white px-2 text-center flex flex-col items-center gap-2">
-                        <div class="w-8 h-8 rounded-full border-4 {% if shipment.status == 'delivered' %}border-green-500 bg-green-500 text-white{% else %}border-slate-300 bg-white text-slate-300{% endif %} flex items-center justify-center font-bold text-xs">✓</div>
-                        <span class="text-xs font-bold {% if shipment.status == 'delivered' %}text-green-600{% else %}text-slate-400{% endif %}">Delivered</span>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 bg-indigo-50 rounded-xl p-4 border border-indigo-100">
-                    <div>
-                        <p class="text-slate-500 text-xs uppercase font-bold">Tracking Code</p>
-                        <p class="font-black text-indigo-700">{{ shipment.tracking_code|default:"Pending" }}</p>
-                    </div>
-                    <div>
-                        <p class="text-slate-500 text-xs uppercase font-bold">Estimated Delivery</p>
-                        <p class="font-black text-slate-800">{{ shipment.estimated_delivery|slice:":10"|default:"TBD" }}</p>
-                    </div>
-                    <div>
-                        <p class="text-slate-500 text-xs uppercase font-bold">Method</p>
-                        <p class="font-black text-slate-800 capitalize">{{ shipment.shipping_method|default:"Standard" }}</p>
-                    </div>
-                </div>
-            </div>
+        <div class="flex gap-3">
+            <a href="/orders/{{ order.id }}/tracking/" class="bg-indigo-50 text-indigo-600 px-6 py-3 rounded-2xl font-bold hover:bg-indigo-100 transition-all text-sm">
+                Track Order
+            </a>
+            {% if order.status == 'pending' or order.status == 'processing' %}
+            <button onclick="confirmCancel()" class="bg-red-50 text-red-600 px-6 py-3 rounded-2xl font-bold hover:bg-red-100 transition-all text-sm">
+                Cancel Order
+            </button>
             {% endif %}
-
-            <!-- Items -->
-            <div class="border-t border-slate-200 pt-6">
-                <h3 class="text-lg font-bold mb-4 text-indigo-600">📦 Order Items</h3>
-                <div class="space-y-3">
-                    {% for item in order.items %}
-                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100">
-                        <div>
-                            <p class="font-bold text-slate-800">{{ item.book_title }}</p>
-                            <p class="text-slate-500 text-sm">Qty: {{ item.quantity }} × ${{ item.unit_price }}</p>
-                        </div>
-                        <p class="font-bold text-indigo-600">${{ item.subtotal }}</p>
-                    </div>
-                    {% endfor %}
-                    
-                    <div class="flex justify-between items-center p-3">
-                        <p class="font-bold text-slate-600">Shipping Fee</p>
-                        <p class="font-bold text-slate-800">${{ order.shipping_fee }}</p>
-                    </div>
-                    
-                    <div class="flex justify-between items-center p-3 border-t border-slate-200 mt-2">
-                        <p class="font-black text-slate-800 text-lg">Total Paid</p>
-                        <p class="font-black text-indigo-600 text-xl">${{ order.total_amount }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="flex gap-4">
-            <a href="/orders/" class="flex-1 text-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-4 rounded-xl transition-all shadow-sm">
-                📋 Order History
-            </a>
-            <a href="/books/" class="flex-1 text-center bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-xl transition-all shadow-md">
-                🛒 Continue Shopping
-            </a>
+            {% if order.status == 'cancelled' %}
+            <button onclick="deleteOrder()" class="bg-red-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-red-700 transition-all text-sm shadow-lg shadow-red-100">
+                Remove Order
+            </button>
+            {% endif %}
         </div>
     </div>
-    </main>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Info -->
+        <div class="lg:col-span-2 space-y-8">
+            <!-- Items Card -->
+            <div class="bg-white border-2 border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+                <div class="p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+                    <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm">Order Items</h3>
+                    <span class="text-slate-500 text-sm font-bold">{{ order.items|length }} Items</span>
+                </div>
+                <div class="divide-y divide-slate-50">
+                    {% for item in order.items %}
+                    <div class="p-6 flex items-center gap-6">
+                        <div class="w-16 h-20 bg-slate-100 rounded-xl flex-shrink-0 flex items-center justify-center">
+                             <svg class="w-8 h-8 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5z"/></svg>
+                        </div>
+                        <div class="flex-grow">
+                            <h4 class="font-bold text-slate-800">{{ item.book_title }}</h4>
+                            <p class="text-slate-500 text-sm">ID: #{{ item.book_id }}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-black text-slate-800">${{ item.unit_price }}</div>
+                            <div class="text-slate-400 text-sm">Qty: {{ item.quantity }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Summary Breakdown -->
+            <div class="bg-white border-2 border-slate-100 rounded-3xl p-8 shadow-sm">
+                <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm mb-6">Payment Summary</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between text-slate-500">
+                        <span>Items Subtotal</span>
+                        <span class="font-bold text-slate-800">${{ order.total_amount|add:"-0" }}</span>
+                    </div>
+                    <div class="flex justify-between text-slate-500">
+                        <span>Shipping ({{ order.shipping_method|title }})</span>
+                        <span class="font-bold text-slate-800">${{ order.shipping_fee }}</span>
+                    </div>
+                    <hr class="border-slate-50">
+                    <div class="flex justify-between text-xl font-black text-slate-800">
+                        <span>Grand Total</span>
+                        <span class="text-indigo-600">${{ order.total_amount }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Info -->
+        <div class="space-y-8">
+            <!-- Shipping Info -->
+            <div class="bg-white border-2 border-slate-100 rounded-3xl p-8 shadow-sm">
+                <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm mb-6">Delivery Address</h3>
+                <p class="text-slate-600 leading-relaxed whitespace-pre-line">{{ order.shipping_address }}</p>
+            </div>
+
+            <!-- Shipping Method & ETA -->
+            <div class="bg-white border-2 border-slate-100 rounded-3xl p-8 shadow-sm">
+                <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm mb-6">Shipping Details</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center gap-3 bg-blue-50 rounded-2xl p-4">
+                        <div class="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-blue-400 uppercase font-black tracking-tighter">Method</div>
+                            <div class="font-bold text-slate-800 text-sm">{{ order.shipping_method|title }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3 bg-green-50 rounded-2xl p-4">
+                        <div class="w-10 h-10 bg-green-600 text-white rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-green-400 uppercase font-black tracking-tighter">Est. Delivery</div>
+                            <div class="font-bold text-slate-800 text-sm">
+                                {% if shipment.estimated_delivery %}
+                                    {{ shipment.estimated_delivery|slice:":10" }}
+                                {% else %}
+                                    Processing...
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Info -->
+            <div class="bg-white border-2 border-slate-100 rounded-3xl p-8 shadow-sm">
+                <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm mb-6">Payment Method</h3>
+                <div class="flex items-center gap-3 bg-indigo-50 rounded-2xl p-4">
+                    <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-black text-xs">$$</div>
+                    <div>
+                        <div class="font-bold text-slate-800 text-sm">{{ order.payment_method|default:"Credit Card" }}</div>
+                        <div class="text-xs text-indigo-400 font-bold uppercase tracking-wider">Verified</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Creation Info -->
+            <div class="bg-white border-2 border-slate-100 rounded-3xl p-8 shadow-sm">
+                <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm mb-4">Timestamps</h3>
+                <div class="space-y-3">
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-black tracking-tighter">Order Date</div>
+                        <div class="text-sm font-bold text-slate-800">{{ order.created_at|slice:":10" }} {{ order.created_at|slice:"11:16" }}</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase font-black tracking-tighter">Last Update</div>
+                        <div class="text-sm font-bold text-slate-800">{{ order.updated_at|slice:":10" }} {{ order.updated_at|slice:"11:16" }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error/Success Modals or Toasts -->
+    <div id="cancelModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl">
+            <h3 class="text-2xl font-black text-slate-800 mb-2">Cancel Order?</h3>
+            <p class="text-slate-500 mb-8">This action cannot be undone. Are you sure you want to cancel your order #{{ order.id }}?</p>
+            <div class="flex gap-4">
+                <button onclick="hideCancel()" class="flex-1 px-6 py-4 rounded-2xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">No, keep it</button>
+                <button id="confirmBtn" onclick="executeCancel()" class="flex-1 px-6 py-4 rounded-2xl font-bold bg-red-600 text-white hover:bg-red-700 transition-all shadow-lg shadow-red-200">Yes, Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function confirmCancel() {
+        document.getElementById('cancelModal').classList.remove('hidden');
+    }
+    function hideCancel() {
+        document.getElementById('cancelModal').classList.add('hidden');
+    }
+    async function executeCancel() {
+        const btn = document.getElementById('confirmBtn');
+        btn.disabled = true;
+        btn.textContent = 'Cancelling...';
+        
+        try {
+            const res = await fetch('/api/orders/{{ order.id }}/cancel/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                location.reload();
+            } else {
+                alert(data.error || 'Failed to cancel order.');
+                btn.disabled = false;
+                btn.textContent = 'Yes, Cancel';
+            }
+        } catch(e) {
+            alert('Network error.');
+            btn.disabled = false;
+            btn.textContent = 'Yes, Cancel';
+        }
+    }
+
+    async function deleteOrder() {
+        if (!confirm('Are you sure you want to permanently remove this order from your history?')) return;
+        
+        try {
+            const res = await fetch('/api/orders/{{ order.id }}/delete/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            if (res.ok) {
+                window.location.href = '/orders/';
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to delete order.');
+            }
+        } catch(e) {
+            alert('Network error.');
+        }
+    }
+</script>
+
 </body>
 </html>

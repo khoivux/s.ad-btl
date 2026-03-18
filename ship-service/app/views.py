@@ -1,7 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Shipment
-from .serializers import ShipmentSerializer
+from django.utils import timezone
+from datetime import timedelta
+import random
+import string
+from .models import Shipment, ShippingMethod
+from .serializers import ShipmentSerializer, ShippingMethodSerializer
 
 class ShipmentCreate(APIView):
     """
@@ -12,10 +16,24 @@ class ShipmentCreate(APIView):
         serializer = ShipmentSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=400)
-        shipment = serializer.save()
+        
+        # Calculate ETA based on shipping method
+        method_slug = request.data.get('shipping_method', 'standard')
+        try:
+            method_obj = ShippingMethod.objects.get(id_slug=method_slug)
+            shipment = serializer.save()
+            shipment.estimated_delivery = timezone.now() + timedelta(days=method_obj.estimated_days)
+            # Add prefix to tracking code based on method
+            chars = string.ascii_uppercase + string.digits
+            prefix = method_slug[:2].upper()
+            shipment.tracking_code = f"VN-{prefix}-" + ''.join(random.choices(chars, k=8))
+            shipment.save()
+        except ShippingMethod.DoesNotExist:
+            shipment = serializer.save()
+
         print(f"[ship-service] Shipment #{shipment.id} for Order {shipment.order_id} "
               f"| Tracking: {shipment.tracking_code} "
-              f"| ETA: {shipment.estimated_delivery}")
+              f"| Method: {shipment.shipping_method}")
         return Response(ShipmentSerializer(shipment).data, status=201)
 
 
@@ -51,21 +69,21 @@ class ShippingMethodList(APIView):
     GET /shipping-methods/ → Returns available shipping options and fees.
     """
     def get(self, request):
-        methods = [
-            {
-                'id': 'standard',
-                'name': 'Standard Shipping',
-                'description': '3-5 business days',
-                'fee': 2.00
-            },
-            {
-                'id': 'express',
-                'name': 'Express Shipping',
-                'description': '1-2 business days',
-                'fee': 5.00
-            }
-        ]
-        return Response(methods)
+        methods = ShippingMethod.objects.all()
+        # If no methods in DB, initialize them automatically
+        if not methods.exists():
+            default_data = [
+                {'id_slug': 'economy', 'name': 'Giao hàng Tiết kiệm', 'base_fee': 1.0, 'free_threshold': 30.0, 'estimated_days': 7, 'description': '5 - 7 ngày'},
+                {'id_slug': 'standard', 'name': 'Giao hàng Tiêu chuẩn', 'base_fee': 2.5, 'free_threshold': 70.0, 'estimated_days': 4, 'description': '3 - 5 ngày'},
+                {'id_slug': 'fast', 'name': 'Giao hàng Nhanh', 'base_fee': 5.0, 'free_threshold': 150.0, 'estimated_days': 2, 'description': '1 - 2 ngày'},
+                {'id_slug': 'instant', 'name': 'Giao hàng Hỏa tốc', 'base_fee': 10.0, 'free_threshold': None, 'estimated_days': 0, 'description': '2 - 4 giờ (TP.HCM)'},
+            ]
+            for d in default_data:
+                ShippingMethod.objects.create(**d)
+            methods = ShippingMethod.objects.all()
+        
+        serializer = ShippingMethodSerializer(methods, many=True)
+        return Response(serializer.data)
 
 class ShipmentByOrder(APIView):
     """

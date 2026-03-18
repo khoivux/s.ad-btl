@@ -19,6 +19,10 @@
         <nav class="flex items-center gap-4 sm:gap-6">
             {% if customer_name %}
             <span class="font-medium text-slate-600 hidden sm:inline">Hello, {{ customer_name }}</span>
+            <a href="/profile/" class="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Profile</a>
+            <a href="/vouchers/shop/" class="text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1">
+                <span>🎟️</span> Shop
+            </a>
             <a href="/orders/" class="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Orders</a>
             <a href="/carts/{{ request.session.customer_id|default:'1' }}/" 
                 class="relative p-2 text-slate-600 hover:text-indigo-600 transition-colors">

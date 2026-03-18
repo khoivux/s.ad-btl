@@ -59,10 +59,9 @@
                 {% for item in items %}
                 <div class="py-6 flex flex-col sm:flex-row items-center justify-between gap-6 group" data-subtotal="{{ item.subtotal }}">
                     <div class="flex items-center gap-6 w-full sm:w-auto">
-                        <!-- Placeholder Image Box -->
                         <div
-                            class="w-20 h-24 bg-purple-50 rounded-xl border-2 border-purple-100 flex items-center justify-center flex-shrink-0 group-hover:border-primary transition-colors">
-                            <span class="text-primary font-heading font-bold italic opacity-50">Book</span>
+                            class="w-20 h-24 bg-slate-50 rounded-xl border-2 border-slate-100 overflow-hidden flex-shrink-0 group-hover:border-primary transition-colors">
+                            <img src="{{ item.image_url }}" alt="{{ item.title }}" class="w-full h-full object-cover">
                         </div>
 
                         <div>

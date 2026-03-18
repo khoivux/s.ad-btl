@@ -70,9 +70,8 @@
             {% for book in books %}
             <article class="group bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col h-full relative">
                 
-                <!-- Book Cover Placeholder -->
-                <a href="/books/{{ book.id }}/" class="aspect-[2/3] w-full bg-slate-100 rounded-xl mb-4 overflow-hidden relative group-hover:opacity-90 transition-opacity flex items-center justify-center">
-                    <span class="text-4xl">📘</span>
+                <a href="/books/{{ book.id }}/" class="aspect-[2/3] w-full bg-slate-100 rounded-xl mb-4 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="{{ book.image_url }}" alt="{{ book.title }}" class="w-full h-full object-cover">
                     <!-- Quick Add Overlay on hover -->
                     <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
                         <button onclick="event.preventDefault(); addToCart({{ book.id }})" 

@@ -4,6 +4,17 @@ from django.utils import timezone
 import random
 import string
 
+class ShippingMethod(models.Model):
+    id_slug = models.SlugField(primary_key=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    base_fee = models.FloatField()
+    free_threshold = models.FloatField(null=True, blank=True)
+    estimated_days = models.IntegerField(default=3)
+
+    def __str__(self):
+        return f"{self.name} (${self.base_fee})"
+
 class Shipment(models.Model):
     STATUS_CHOICES = [
         ('waiting', 'Waiting (Pending processing)'),
@@ -12,15 +23,11 @@ class Shipment(models.Model):
         ('delivered', 'Delivered (Successfully handed over)'),
         ('cancelled', 'Cancelled'),
     ]
-    METHOD_CHOICES = [
-        ('standard', 'Standard Shipping'),
-        ('express', 'Express Shipping'),
-    ]
     
     order_id = models.IntegerField(unique=True)
     customer_id = models.IntegerField()
     tracking_code = models.CharField(max_length=50, unique=True, blank=True)
-    shipping_method = models.CharField(max_length=20, choices=METHOD_CHOICES, default='standard')
+    shipping_method = models.CharField(max_length=50, default='standard')
     address = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='waiting')
     estimated_delivery = models.DateTimeField(null=True, blank=True)

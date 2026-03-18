@@ -57,7 +57,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5" id="savedAddresses">
                 {% for addr in addresses %}
                 <div class="address-card border-2 border-slate-200 rounded-xl p-4 {% if addr.is_default %}selected{% endif %}"
-                     onclick="selectAddress(this, '{{ addr.street }}, {{ addr.city }}, {{ addr.country }}')"
+                     onclick="selectAddress(this, '{{ addr.street }}, {{ addr.city }}, {{ addr.country }}', '{{ addr.recipient_name|default:''|escapejs }}', '{{ addr.recipient_phone|default:''|escapejs }}')"
                      data-address="{{ addr.street }}, {{ addr.city }}, {{ addr.country }}">
                     <div class="flex justify-between items-start mb-1">
                         <span class="font-black text-slate-800 text-sm">{{ addr.name }}</span>
@@ -123,13 +123,21 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="shippingOptions">
                 {% for method in shipping_methods %}
                 <label class="payment-option cursor-pointer">
-                    <input type="radio" name="shipping_method" value="{{ method.id }}" data-fee="{{ method.fee }}" 
-                           class="hidden" onchange="selectShipping(this)" {% if forloop.first %}checked{% endif %}>
-                    <div class="border-2 border-slate-200 rounded-xl p-4 flex flex-col items-center text-center shipping-label transition-all {% if forloop.first %}border-indigo-500 bg-indigo-50{% endif %}">
-                        <div class="text-2xl mb-1">{% if method.id == 'express' %}🚀{% else %}🚚{% endif %}</div>
+                    <input type="radio" name="shipping_method" value="{{ method.id_slug }}" 
+                           data-fee="{{ method.base_fee }}" 
+                           data-threshold="{{ method.free_threshold|default:999999 }}"
+                           class="hidden" onchange="selectShipping(this)" {% if method.id_slug == 'standard' %}checked{% endif %}>
+                    <div class="border-2 rounded-xl p-4 flex flex-col items-center text-center shipping-label transition-all 
+                        {% if method.id_slug == 'standard' %}border-indigo-500 bg-indigo-50{% else %}border-slate-200{% endif %}">
+                        <div class="text-2xl mb-1">
+                            {% if method.id_slug == 'instant' %}🚀
+                            {% elif method.id_slug == 'fast' %}🚚
+                            {% elif method.id_slug == 'economy' %}📦
+                            {% else %}🚚{% endif %}
+                        </div>
                         <div class="font-black text-slate-800 text-sm">{{ method.name }}</div>
                         <div class="text-slate-500 text-xs mb-1">{{ method.description }}</div>
-                        <div class="text-indigo-600 font-bold">${{ method.fee|floatformat:2 }}</div>
+                        <div class="text-indigo-600 font-bold shipping-fee-display" id="fee-{{ method.id_slug }}">${{ method.base_fee|floatformat:2 }}</div>
                     </div>
                 </label>
                 {% empty %}
@@ -141,7 +149,7 @@
         <!-- Payment Method -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <h2 class="text-lg font-black text-slate-800 mb-5 flex items-center gap-2">
-                <span class="w-8 h-8 rounded-full step-active flex items-center justify-center text-sm font-black">3</span>
+                <span class="w-8 h-8 rounded-full step-active flex items-center justify-center text-sm font-black">4</span>
                 Payment Method
             </h2>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -179,6 +187,46 @@
                 </label>
             </div>
         </div>
+
+        <!-- Vouchers -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-lg font-black text-slate-800 mb-5 flex items-center gap-2">
+                <span class="w-8 h-8 rounded-full step-active flex items-center justify-center text-sm font-black">5</span>
+                Apply Voucher
+            </h2>
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="voucherInput" placeholder="Enter voucher code" 
+                    class="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 uppercase font-bold">
+                <button onclick="applyVoucherManual()" class="bg-slate-900 text-white px-6 rounded-xl font-bold hover:bg-slate-800 transition-colors">Apply</button>
+            </div>
+            
+            {% if vouchers %}
+            <p class="text-slate-500 text-sm font-bold mb-3">🏷️ Available for you</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {% for v in vouchers %}
+                <div class="voucher-card border-2 border-slate-200 rounded-xl p-4 flex justify-between items-center cursor-pointer hover:border-indigo-300 transition-all select-none"
+                     onclick="selectVoucher('{{ v.code }}', {{ v.discount_amount }}, {{ v.is_percentage|lower }}, {{ v.min_spend }})">
+                    <div>
+                        <div class="font-black text-slate-800 text-sm">{{ v.code }}</div>
+                        <p class="text-[10px] text-slate-500 font-bold">MIN SPEND: ${{ v.min_spend }}</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-indigo-600 font-black text-sm">
+                            {% if v.is_percentage %}{{ v.discount_amount }}% OFF{% else %}${{ v.discount_amount }} OFF{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div id="appliedVoucherInfo" class="hidden mt-4 bg-green-50 border border-green-200 rounded-xl p-4 flex justify-between items-center">
+                <div class="text-sm text-green-800 font-bold">
+                    ✅ Applied: <span id="appliedVoucherCode" class="bg-green-100 px-2 py-0.5 rounded"></span>
+                </div>
+                <button onclick="removeVoucher()" class="text-green-600 hover:text-red-500 text-sm font-bold">Remove</button>
+            </div>
+        </div>
     </div>
 
     <!-- RIGHT: Order Summary -->
@@ -189,12 +237,12 @@
             <div class="space-y-4 mb-6">
                 {% for item in cart_items %}
                 <div class="flex gap-3 items-start">
-                    <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 font-black text-sm flex-shrink-0">
-                        {{ item.quantity }}×
+                    <div class="w-12 h-16 bg-slate-50 rounded-lg overflow-hidden flex-shrink-0 border border-slate-100">
+                        <img src="{{ item.image_url }}" alt="{{ item.title }}" class="w-full h-full object-cover">
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="font-bold text-slate-800 text-sm truncate">{{ item.title }}</p>
-                        <p class="text-slate-400 text-xs">{{ item.author }}</p>
+                        <p class="text-slate-400 text-[10px]">{{ item.quantity }} × ${{ item.price }}</p>
                     </div>
                     <p class="font-black text-slate-800 text-sm">${{ item.subtotal }}</p>
                 </div>
@@ -212,9 +260,25 @@
                     <span>Shipping</span>
                     <span id="displayShipping" class="font-bold text-slate-800">$0.00</span>
                 </div>
+                {% if membership_level and membership_level.discount_percentage > 0 %}
+                <div class="flex justify-between text-indigo-600 text-sm font-bold bg-indigo-50 p-2 rounded-lg">
+                    <span>{{ membership_level.name }} Discount ({{ membership_level.discount_percentage }}%)</span>
+                    <span id="displayMembershipDiscount"></span>
+                </div>
+                {% endif %}
+                <div id="voucherSummaryLine" class="hidden flex justify-between text-green-600 text-sm font-bold bg-green-50 p-2 rounded-lg">
+                    <span>Voucher Discount</span>
+                    <span id="displayVoucherDiscount"></span>
+                </div>
                 <div class="flex justify-between font-black text-slate-800 text-lg pt-2 border-t border-slate-200">
                     <span>Total</span>
                     <span id="displayTotal" class="text-indigo-600">${{ total }}</span>
+                </div>
+                <div class="flex items-center gap-2 bg-yellow-50 text-yellow-800 p-2 rounded-lg text-[10px] font-black uppercase tracking-wider mt-2 border border-yellow-100">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    <span>You will earn <span id="rewardPoints">0</span> points</span>
                 </div>
             </div>
 
@@ -245,11 +309,16 @@
         }
     });
 
-    function selectAddress(el, addressText) {
+    function selectAddress(el, addressText, rName, rPhone) {
         document.querySelectorAll('.address-card').forEach(c => c.classList.remove('selected'));
         el.classList.add('selected');
         selectedSavedAddress = addressText;
         showSelectedAddr(addressText);
+        
+        // Sync contact info if provided in address
+        if (rName) document.getElementById('contactName').value = rName;
+        if (rPhone) document.getElementById('contactPhone').value = rPhone;
+
         // Clear manual fields
         document.getElementById('addrStreet').value = '';
         document.getElementById('addrCity').value = '';
@@ -290,14 +359,94 @@
         const subtotalStr = document.getElementById('displaySubtotal').getAttribute('data-value');
         const subtotal = parseFloat(subtotalStr) || 0;
         
-        const shippingInput = document.querySelector('input[name="shipping_method"]:checked');
-        let shippingFee = 0;
-        if (shippingInput) {
-            shippingFee = parseFloat(shippingInput.dataset.fee) || 0;
+        // Membership Discount
+        const discPercent = {{ membership_level.discount_percentage|default:0 }};
+        const membershipDiscount = (subtotal * discPercent) / 100;
+        const discEl = document.getElementById('displayMembershipDiscount');
+        if (discEl) {
+            discEl.textContent = `-$${membershipDiscount.toFixed(2)}`;
         }
+
+        // Potential Points (based on subtotal before discount? Usually on final net amount)
+        // User said: 0.1$ = 1 point -> 1$ = 10 points
+        const points = Math.floor(subtotal * 10);
+        document.getElementById('rewardPoints').textContent = points;
+
+        // Voucher Discount
+        let voucherDiscount = 0;
+        if (selectedVoucher.code) {
+            if (selectedVoucher.isPercentage) {
+                voucherDiscount = (subtotal * selectedVoucher.amount) / 100;
+            } else {
+                voucherDiscount = selectedVoucher.amount;
+            }
+        }
+        const vDiscEl = document.getElementById('displayVoucherDiscount');
+        if (vDiscEl) vDiscEl.textContent = `-$${voucherDiscount.toFixed(2)}`;
         
-        document.getElementById('displayShipping').textContent = `$${shippingFee.toFixed(2)}`;
-        document.getElementById('displayTotal').textContent = `$${(subtotal + shippingFee).toFixed(2)}`;
+        // Update all displayed fees based on threshold
+        document.querySelectorAll('input[name="shipping_method"]').forEach(input => {
+            const baseFee = parseFloat(input.dataset.fee);
+            const threshold = parseFloat(input.dataset.threshold);
+            const feeDisplay = document.getElementById(`fee-${input.value}`);
+            
+            if (subtotal >= threshold) {
+                if (feeDisplay) feeDisplay.innerHTML = `<span class="line-through text-slate-400">$${baseFee.toFixed(2)}</span> <span class="text-green-600">FREE</span>`;
+                if (input.checked) currentShippingFee = 0;
+            } else {
+                if (feeDisplay) feeDisplay.textContent = `$${baseFee.toFixed(2)}`;
+                if (input.checked) currentShippingFee = baseFee;
+            }
+        });
+        
+        document.getElementById('displayShipping').textContent = `$${currentShippingFee.toFixed(2)}`;
+        document.getElementById('displayTotal').textContent = `$${(subtotal - membershipDiscount - voucherDiscount + currentShippingFee).toFixed(2)}`;
+    }
+
+    let currentShippingFee = 0;
+    let selectedVoucher = {
+        code: null,
+        amount: 0,
+        isPercentage: false,
+        minSpend: 0
+    };
+
+    function selectVoucher(code, amount, isPercentage, minSpend) {
+        const subtotal = parseFloat(document.getElementById('displaySubtotal').getAttribute('data-value')) || 0;
+        if (subtotal < minSpend) {
+            alert(`Minimum spend for this voucher is $${minSpend}. Your subtotal is $${subtotal}.`);
+            return;
+        }
+
+        selectedVoucher = { code, amount, isPercentage, minSpend };
+        document.getElementById('appliedVoucherCode').textContent = code;
+        document.getElementById('appliedVoucherInfo').classList.remove('hidden');
+        document.getElementById('voucherSummaryLine').classList.remove('hidden');
+        document.getElementById('voucherInput').value = code;
+        updateTotal();
+    }
+
+    function removeVoucher() {
+        selectedVoucher = { code: null, amount: 0, isPercentage: false, minSpend: 0 };
+        document.getElementById('appliedVoucherInfo').classList.add('hidden');
+        document.getElementById('voucherSummaryLine').classList.add('hidden');
+        document.getElementById('voucherInput').value = '';
+        updateTotal();
+    }
+
+    async function applyVoucherManual() {
+        const code = document.getElementById('voucherInput').value.trim().toUpperCase();
+        if (!code) return;
+        
+        try {
+            const r = await fetch(`/api/vouchers/${code}/`);
+            if (r.ok) {
+                const v = await r.json();
+                selectVoucher(v.code, v.discount_amount, v.is_percentage, v.min_spend);
+            } else {
+                alert('Invalid voucher code or not eligible.');
+            }
+        } catch(e) { alert('Error applying voucher'); }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -314,7 +463,8 @@
         const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
         const shippingMethodInput = document.querySelector('input[name="shipping_method"]:checked');
         const shippingMethod = shippingMethodInput ? shippingMethodInput.value : 'standard';
-        const shippingFee = shippingMethodInput ? parseFloat(shippingMethodInput.dataset.fee) : 0;
+        const shippingFee = currentShippingFee;
+        const voucherCode = selectedVoucher.code;
 
         // Build address string
         let shippingAddress = selectedSavedAddress || '';
@@ -363,11 +513,12 @@
                     shipping_fee: shippingFee,
                     contact_name: contactName,
                     contact_phone: contactPhone,
+                    voucher_code: voucherCode,
                 })
             });
             const data = await res.json();
             if (res.ok) {
-                window.location.href = '/orders/' + data.order.id + '/';
+                window.location.href = '/orders/' + data.order.id + '/success/';
             } else {
                 showError(data.error || 'Order failed. Please try again.');
                 btn.textContent = 'Place Order →';

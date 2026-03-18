@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Customer, Address
-from .serializers import CustomerSerializer, AddressSerializer
+from .models import Customer, Address, MembershipLevel, LoyaltyWallet, PointTransaction
+from .serializers import CustomerSerializer, AddressSerializer, LoyaltyWalletSerializer
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
@@ -26,6 +26,10 @@ class CustomerListCreate(APIView):
                 email=request.data['email'],
                 password=request.data.get('password', '123456'),
             )
+            # Auto-create Loyalty Wallet
+            bronze = MembershipLevel.objects.filter(name='Bronze').first()
+            LoyaltyWallet.objects.create(customer=customer, current_level=bronze)
+            
             try:
                 requests.post(f"{CART_SERVICE_URL}/carts/", json={"customer_id": customer.id})
             except Exception:
@@ -42,6 +46,18 @@ class CustomerDetail(APIView):
             return Response(CustomerSerializer(customer).data)
         except Customer.DoesNotExist:
             return Response({'error': 'Not found'}, status=404)
+
+    def put(self, request, pk):
+        try:
+            customer = Customer.objects.get(pk=pk)
+        except Customer.DoesNotExist:
+            return Response({'error': 'Not found'}, status=404)
+        
+        serializer = CustomerSerializer(customer, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status= status.HTTP_400_BAD_REQUEST)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -120,3 +136,48 @@ class AddressDetail(APIView):
         address.is_default = True
         address.save()
         return Response(AddressSerializer(address).data)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class WalletDetail(APIView):
+    def get(self, request, customer_id):
+        try:
+            wallet = LoyaltyWallet.objects.get(customer_id=customer_id)
+            return Response(LoyaltyWalletSerializer(wallet).data)
+        except LoyaltyWallet.DoesNotExist:
+            return Response({'error': 'Wallet not found'}, status=404)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AddPointsView(APIView):
+    def post(self, request, customer_id):
+        amount = request.data.get('amount') or 0
+        desc = request.data.get('description') or 'Purchase reward'
+        
+        try:
+            wallet = LoyaltyWallet.objects.get(customer_id=customer_id)
+            wallet.usable_points += int(amount)
+            wallet.accumulated_points += int(amount)
+            
+            # Re-evaluate Level
+            levels = MembershipLevel.objects.all().order_by('-min_points')
+            for level in levels:
+                if wallet.accumulated_points >= level.min_points:
+                    wallet.current_level = level
+                    break
+            
+            wallet.save()
+            
+            # Record Transaction
+            PointTransaction.objects.create(
+                wallet=wallet,
+                amount=amount,
+                transaction_type='EARN',
+                description=desc
+            )
+            
+            return Response(LoyaltyWalletSerializer(wallet).data)
+        except LoyaltyWallet.DoesNotExist:
+            return Response({'error': 'Wallet not found'}, status=404)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)

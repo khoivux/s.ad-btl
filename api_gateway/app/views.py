@@ -10,6 +10,7 @@ CART_SERVICE_URL = "http://cart-service:8000"
 STAFF_SERVICE_URL = "http://staff-service:8000"
 ORDER_SERVICE_URL = "http://order-service:8000"
 COMMENT_RATE_SERVICE_URL = "http://comment-rate-service:8006"
+SHIP_SERVICE_URL = "http://ship-service:8000"
 
 def _log(label, r):
     """Helper to print response info to terminal."""
@@ -140,6 +141,53 @@ def book_review_submit(request, book_id):
         
     except Exception as e:
         print(f"[book_review_submit] Exception: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def profile_view(request):
+    """GET /profile/ — Render the user profile & address management page."""
+    if 'customer_id' not in request.session:
+        return redirect('login')
+    
+    customer_id = request.session['customer_id']
+    try:
+        r = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/")
+        _log("profile_view", r)
+        customer_data = r.json()
+    except Exception as e:
+        print(f"[api-gateway][profile_view] Exception: {e}")
+        customer_data = {}
+
+    return render(request, "profile.html", {
+        "customer": customer_data,
+        "customer_name": request.session.get('customer_name'),
+        "customer_id": customer_id
+    })
+
+
+@csrf_exempt
+def api_update_profile(request):
+    """PUT /api/profile/ — Update customer profile information."""
+    if 'customer_id' not in request.session:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    
+    if request.method != 'PUT' and request.method != 'POST':
+         # Fallback for simple forms if needed, but we target AJAX PUT
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    customer_id = request.session['customer_id']
+    try:
+        data = json.loads(request.body)
+        r = requests.put(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/", json=data)
+        _log("api_update_profile", r)
+        if r.status_code == 200:
+            # Update session if name changed
+            new_data = r.json()
+            if 'name' in new_data:
+                request.session['customer_name'] = new_data['name']
+        return JsonResponse(r.json(), status=r.status_code)
+    except Exception as e:
+        print(f"[api_gateway][api_update_profile] Exception: {e}")
         return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -357,6 +405,47 @@ def staff_delete_book(request, pk):
         return JsonResponse({'error': 'Failed to delete'}, status=r.status_code)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
+@csrf_exempt
+def staff_vouchers_list_create(request):
+    if 'staff_id' not in request.session:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    
+    url = f"{ORDER_SERVICE_URL}/staff/vouchers/"
+    if request.method == 'GET':
+        r = requests.get(url)
+        return JsonResponse(r.json(), safe=False, status=r.status_code)
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            r = requests.post(url, json=data)
+            return JsonResponse(r.json(), status=r.status_code)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@csrf_exempt
+def staff_voucher_detail(request, pk):
+    if 'staff_id' not in request.session:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+        
+    url = f"{ORDER_SERVICE_URL}/staff/vouchers/{pk}/"
+    if request.method == 'GET':
+        r = requests.get(url)
+        return JsonResponse(r.json(), status=r.status_code)
+    elif request.method == 'PUT':
+        try:
+            data = json.loads(request.body)
+            r = requests.put(url, json=data)
+            return JsonResponse(r.json(), status=r.status_code)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    elif request.method == 'DELETE':
+        r = requests.delete(url)
+        if r.status_code == 204:
+            return JsonResponse({'status': 'deleted'}, status=200)
+        return JsonResponse(r.json(), status=r.status_code)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
 # ─── Checkout & Order Views ───────────────────────────────────────────────────
 
 def checkout_page_view(request):
@@ -423,12 +512,39 @@ def checkout_page_view(request):
     except Exception as e:
         print(f"[api-gateway][checkout_page] shipping-methods err: {e}")
 
+    # Fetch membership discount info
+    membership_level = None
+    if customer:
+        wallet = customer.get('wallet')
+        if wallet and wallet.get('current_level'):
+            membership_level = wallet['current_level']
+            discount_pct = membership_level['discount_percentage']
+            if discount_pct > 0:
+                discount_amount = (total * float(discount_pct)) / 100
+                total -= discount_amount
+
+    # Fetch available vouchers
+    available_vouchers = []
+    try:
+        v_r = requests.get(f"{ORDER_SERVICE_URL}/vouchers/")
+        if v_r.status_code == 200:
+            all_vouchers = v_r.json()
+            # Filter by membership level if applicable
+            current_level_id = membership_level['id'] if membership_level else None
+            for v in all_vouchers:
+                if v.get('is_active') and (not v.get('min_points_level_id') or (current_level_id and current_level_id >= v['min_points_level_id'])):
+                    available_vouchers.append(v)
+    except Exception as e:
+        print(f"[api-gateway][checkout_page] vouchers err: {e}")
+
     return render(request, "checkout.html", {
         "cart_items": cart_items,
         "total": round(total, 2),
         "addresses": addresses,
         "shipping_methods": shipping_methods,
         "customer": customer,
+        "membership_level": membership_level,
+        "vouchers": available_vouchers,
         "customer_name": request.session.get('customer_name'),
         "customer_id": customer_id,
     })
@@ -497,8 +613,19 @@ def order_history_view(request):
     })
 
 
+def order_success_view(request, order_id):
+    """GET /orders/<id>/success/ — Post-checkout success page."""
+    return render(request, "order_success.html", {
+        "order_id": order_id,
+        "customer_name": request.session.get('customer_name'),
+    })
+
+
 def order_detail_view(request, order_id):
-    """GET /orders/<id>/ — Order confirmation / detail page."""
+    """GET /orders/<id>/detail/ — Detailed order view."""
+    if 'customer_id' not in request.session:
+        return redirect('login')
+    
     try:
         r = requests.get(f"{ORDER_SERVICE_URL}/orders/{order_id}/")
         _log(f"order_detail {order_id}", r)
@@ -523,6 +650,56 @@ def order_detail_view(request, order_id):
         "shipment": shipment,
         "customer_name": request.session.get('customer_name'),
     })
+
+
+def order_tracking_view(request, order_id):
+    """GET /orders/<id>/tracking/ — Visual tracking for order."""
+    if 'customer_id' not in request.session:
+        return redirect('login')
+        
+    try:
+        r = requests.get(f"{ORDER_SERVICE_URL}/orders/{order_id}/")
+        order = r.json()
+        s_r = requests.get(f"{SHIP_SERVICE_URL}/shipments/order/{order_id}/")
+        shipment = s_r.json() if s_r.status_code == 200 else {}
+    except Exception:
+        order, shipment = {}, {}
+
+    return render(request, "order_tracking.html", {
+        "order": order,
+        "shipment": shipment,
+    })
+
+
+@csrf_exempt
+def api_cancel_order(request, order_id):
+    """POST /api/orders/<id>/cancel/ — Proxy to order-service cancellation."""
+    if 'customer_id' not in request.session:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    
+    if request.method == 'POST':
+        try:
+            r = requests.post(f"{ORDER_SERVICE_URL}/orders/{order_id}/cancel/")
+            return JsonResponse(r.json(), status=r.status_code)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=503)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@csrf_exempt
+def api_delete_order(request, order_id):
+    """POST /api/orders/<id>/delete/ — Proxy to order-service deletion."""
+    if 'customer_id' not in request.session:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    
+    if request.method == 'POST':
+        try:
+            # Order service expects DELETE method for deletion, but we use POST from frontend for simplicity with CSRF
+            r = requests.delete(f"{ORDER_SERVICE_URL}/orders/{order_id}/delete/")
+            return JsonResponse(r.json(), status=r.status_code)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=503)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 
 # ─── Address API Proxy ────────────────────────────────────────────────────────
@@ -574,3 +751,69 @@ def address_detail(request, customer_id, pk):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=503)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+# ─── Loyalty & Voucher API Proxy ─────────────────────────────────────────────
+
+@csrf_exempt
+def api_wallet_detail(request):
+    """GET /api/loyalty/wallet/"""
+    if 'customer_id' not in request.session:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    customer_id = request.session['customer_id']
+    try:
+        r = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/wallet/")
+        return JsonResponse(r.json(), safe=False, status=r.status_code)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=503)
+
+@csrf_exempt
+def api_vouchers_list(request):
+    """GET /api/vouchers/"""
+    try:
+        r = requests.get(f"{ORDER_SERVICE_URL}/vouchers/")
+        return JsonResponse(r.json(), safe=False, status=r.status_code)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=503)
+
+@csrf_exempt
+def api_redeem_voucher(request):
+    if 'customer_id' not in request.session:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    customer_id = request.session['customer_id']
+    try:
+        data = json.loads(request.body)
+        data['customer_id'] = customer_id
+        r = requests.post(f"{ORDER_SERVICE_URL}/vouchers/redeem/", json=data)
+        return JsonResponse(r.json(), status=r.status_code)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=503)
+
+def api_customer_vouchers(request):
+    if 'customer_id' not in request.session:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    customer_id = request.session['customer_id']
+    try:
+        r = requests.get(f"{ORDER_SERVICE_URL}/vouchers/customer/{customer_id}/")
+        return JsonResponse(r.json(), safe=False, status=r.status_code)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=503)
+
+def vouchers_shop_view(request):
+    if 'customer_id' not in request.session:
+        return redirect('login')
+    
+    customer_id = request.session['customer_id']
+    customer_data = {}
+    try:
+        r = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/")
+        customer_data = r.json()
+    except: pass
+
+    return render(request, "vouchers_shop.html", {
+        "customer": customer_data,
+        "customer_name": request.session.get('customer_name')
+    })

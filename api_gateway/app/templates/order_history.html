@@ -22,14 +22,16 @@
                     </div>
                     <div class="text-right">
                         <p class="text-slate-500 text-sm mb-1">Status</p>
-                        {% if order.status == 'shipped' %}
-                        <span class="bg-green-900 text-green-300 font-bold px-3 py-1 rounded-full text-xs uppercase">✅ {{ order.status }}</span>
-                        {% elif order.status == 'paid' %}
-                        <span class="bg-blue-900 text-blue-300 font-bold px-3 py-1 rounded-full text-xs uppercase">💳 {{ order.status }}</span>
-                        {% elif order.status == 'failed' %}
-                        <span class="bg-red-900 text-red-300 font-bold px-3 py-1 rounded-full text-xs uppercase">❌ {{ order.status }}</span>
+                        {% if order.status == 'delivered' %}
+                        <span class="bg-green-100 text-green-700 font-bold px-3 py-1 rounded-full text-xs uppercase tracking-wider">✅ Delivered</span>
+                        {% elif order.status == 'cancelled' %}
+                        <span class="bg-red-100 text-red-700 font-bold px-3 py-1 rounded-full text-xs uppercase tracking-wider">🚫 Cancelled</span>
+                        {% elif order.status == 'shipping' %}
+                        <span class="bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full text-xs uppercase tracking-wider">🚚 Shipping</span>
+                        {% elif order.status == 'processing' %}
+                        <span class="bg-indigo-100 text-indigo-700 font-bold px-3 py-1 rounded-full text-xs uppercase tracking-wider">⚙️ Processing</span>
                         {% else %}
-                        <span class="bg-yellow-900 text-yellow-300 font-bold px-3 py-1 rounded-full text-xs uppercase">⏳ {{ order.status }}</span>
+                        <span class="bg-amber-100 text-amber-700 font-bold px-3 py-1 rounded-full text-xs uppercase tracking-wider">⏳ {{ order.status|title }}</span>
                         {% endif %}
                     </div>
                 </div>
@@ -44,27 +46,98 @@
                         <p class="font-bold text-slate-800">{{ order.items|length }} books</p>
                     </div>
                     <div>
-                        <p class="text-slate-500 text-xs">Date</p>
-                        <p class="font-bold text-slate-800 text-sm">{{ order.created_at }}</p>
+                        <p class="text-slate-500 text-xs text-right">Date</p>
+                        <p class="font-bold text-slate-800 text-sm text-right">{{ order.created_at|slice:":10" }}</p>
                     </div>
                 </div>
 
-                <a href="/orders/{{ order.id }}/" class="mt-4 inline-block text-indigo-600 hover:text-indigo-500 font-bold text-sm transition-colors">
-                    View Details →
-                </a>
+                <div class="mt-6 flex justify-between items-center bg-slate-50 -mx-6 -mb-6 px-6 py-4 rounded-b-2xl">
+                    <a href="/orders/{{ order.id }}/detail/" class="text-indigo-600 hover:text-indigo-500 font-black text-sm transition-colors flex items-center gap-1">
+                        View Details 
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                    
+                    <div class="flex gap-2">
+                        {% if order.status != 'cancelled' and order.status != 'delivered' %}
+                        <a href="/orders/{{ order.id }}/tracking/" class="text-slate-600 hover:text-indigo-600 text-xs font-bold px-3 py-1 rounded-lg border border-slate-200 bg-white">
+                            Track
+                        </a>
+                        {% endif %}
+                        
+                        {% if order.status == 'cancelled' %}
+                        <button onclick="deleteOrder({{ order.id }})" class="text-red-500 hover:text-white hover:bg-red-500 text-xs font-bold px-3 py-1 rounded-lg border border-red-200 bg-white transition-all">
+                            Remove
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
             {% endfor %}
         </div>
+
+        <!-- Confirm Delete Modal (Generic for any order id) -->
+        <div id="deleteModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl">
+                <h3 class="text-2xl font-black text-slate-800 mb-2">Delete History?</h3>
+                <p class="text-slate-500 mb-8">This will permanently remove order #<span id="targetOrderId"></span> from your history. This cannot be undone.</p>
+                <div class="flex gap-4">
+                    <button onclick="hideDelete()" class="flex-1 px-6 py-4 rounded-2xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+                    <button id="confirmDelBtn" class="flex-1 px-6 py-4 rounded-2xl font-bold bg-red-600 text-white hover:bg-red-700 transition-all">Delete</button>
+                </div>
+            </div>
+        </div>
+
         {% else %}
         <div class="text-center py-20">
-            <div class="text-6xl mb-4">📭</div>
+            <div class="text-6xl mb-4 text-slate-200">📭</div>
             <h2 class="text-2xl font-bold text-slate-600">No orders yet</h2>
-            <p class="text-slate-500 mt-2">Go shop some books!</p>
-            <a href="/books/" class="mt-6 inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-3 rounded-xl transition-all shadow-md">
-                Browse Books
+            <p class="text-slate-500 mt-2 italic">Your bookshelf is feeling a bit lonely...</p>
+            <a href="/books/" class="mt-8 inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-black px-10 py-4 rounded-2xl transition-all shadow-lg hover:shadow-indigo-200">
+                Start Shopping
             </a>
         </div>
         {% endif %}
     </main>
+
+    <script>
+        let currentDeleteId = null;
+
+        function deleteOrder(id) {
+            currentDeleteId = id;
+            document.getElementById('targetOrderId').textContent = id;
+            document.getElementById('deleteModal').classList.remove('hidden');
+            document.getElementById('confirmDelBtn').onclick = executeDelete;
+        }
+
+        function hideDelete() {
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        async function executeDelete() {
+            if (!currentDeleteId) return;
+            const btn = document.getElementById('confirmDelBtn');
+            btn.disabled = true;
+            btn.textContent = 'Removing...';
+            
+            try {
+                const res = await fetch(`/api/orders/${currentDeleteId}/delete/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                });
+                if (res.ok) {
+                    location.reload();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to delete order.');
+                    btn.disabled = false;
+                    btn.textContent = 'Delete';
+                }
+            } catch(e) {
+                alert('Network error.');
+                btn.disabled = false;
+                btn.textContent = 'Delete';
+            }
+        }
+    </script>
 </body>
 </html>
