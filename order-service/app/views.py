@@ -7,6 +7,7 @@ import requests
 import decimal
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+import django.utils.timezone
 
 CART_SERVICE_URL = "http://cart-service:8000"
 BOOK_SERVICE_URL = "http://book-service:8000"
@@ -16,6 +17,10 @@ CUSTOMER_SERVICE_URL = "http://customer-service:8000"
 
 def _log(tag, r):
     print(f"[order-service][{tag}] {r.request.method} {r.url} → {r.status_code}")
+
+def _add_status_log(order, status, notes=""):
+    from .models import OrderStatusLog
+    OrderStatusLog.objects.create(order=order, status=status, notes=notes)
 
 class OrderListCreate(APIView):
     """
@@ -70,7 +75,8 @@ class OrderListCreate(APIView):
         # ── Step 2.5: Loyalty & Discounts ────────────────────────────────────
         print(f"[order-service] Step 2.5: Checking loyalty for customer {customer_id}")
         membership_discount = decimal.Decimal('0')
-        points_to_generate = int(total_amount * 10)  # 1$ = 10 pts
+        points_to_generate = int(total_amount)  # 1$ = 1 pt
+        wallet = None
         
         try:
             cust_resp = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/")
@@ -87,7 +93,9 @@ class OrderListCreate(APIView):
 
         # ── Step 2.6: Voucher Handling ─────────────────────────────────────────
         voucher_discount = decimal.Decimal('0')
-        voucher_code = request.data.get('voucher_code', '')
+        voucher_code = request.data.get('voucher_code')
+        if not voucher_code:
+            voucher_code = ''
         if voucher_code:
             try:
                 voucher = Voucher.objects.filter(code=voucher_code, is_active=True).first()
@@ -96,32 +104,27 @@ class OrderListCreate(APIView):
 
                 # Check if it's a public voucher OR if the customer owns it
                 is_available = False
-                if voucher.is_public:
+                ownership = CustomerVoucher.objects.filter(customer_id=customer_id, voucher=voucher, is_used=False).first()
+
+                # ONLY allow public vouchers if they are FREE (0 points). 
+                # If they cost points, they MUST be redeemed first (ownership check).
+                if voucher.is_public and voucher.point_cost == 0:
+                    is_available = True
+                elif ownership:
                     is_available = True
                 else:
-                    # Check ownership
-                    ownership = CustomerVoucher.objects.filter(customer_id=customer_id, voucher=voucher, is_used=False).first()
-                    if ownership:
-                        is_available = True
-                    else:
-                        return Response({'error': 'You do not own this voucher or it was already used.'}, status=400)
+                    return Response({'error': 'You do not own this voucher. Please redeem it with points first.'}, status=400)
 
                 if is_available:
                     # Validate min spend
                     if total_amount >= voucher.min_spend:
                         # Validate min level
-                        current_level_id = wallet.get('current_level', {}).get('id') if 'wallet' in locals() and wallet else None
+                        current_level_id = wallet.get('current_level', {}).get('id') if wallet else None
                         if not voucher.min_points_level_id or (current_level_id and current_level_id >= voucher.min_points_level_id):
-                            # Dedut points if any (Only for public vouchers that cost points - non-public ones are already 'paid' for)
-                            if voucher.is_public and voucher.point_cost > 0:
-                                spend_payload = {
-                                    'points': -voucher.point_cost,
-                                    'transaction_type': 'SPEND',
-                                    'description': f'Used public voucher {voucher.code}'
-                                }
-                                spend_r = requests.post(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/add-points/", json=spend_payload)
-                                if spend_r.status_code != 200:
-                                    return Response({'error': 'Insufficient points to use this voucher'}, status=400)
+                            
+                            # Note: We don't need to deduct points here anymore because 
+                            # we enforced 'Redeem First' for any voucher that costs points.
+                            # Points were already deducted during redemption.
 
                             if voucher.is_percentage:
                                 voucher_discount = (total_amount * decimal.Decimal(str(voucher.discount_amount))) / 100
@@ -129,32 +132,31 @@ class OrderListCreate(APIView):
                                 voucher_discount = decimal.Decimal(str(voucher.discount_amount))
                             
                             # Mark as used if it was a CustomerVoucher
-                            if not voucher.is_public:
+                            if ownership:
                                 ownership.is_used = True
-                                ownership.used_at = django.utils.timezone.now() if 'django.utils.timezone' in locals() else None # Need import
-                                # ownership.save() # I'll do this later after order creation to ensure atomicity or just do it here
-                                # Better to save after order is confirmed successful OR link it to order
-                                # But for now, let's just mark it.
+                                ownership.used_at = django.utils.timezone.now()
                             
                             print(f"[order-service] Voucher applied: {voucher.code} (-{voucher_discount})")
                         else:
                             return Response({'error': 'Voucher not available for your membership level'}, status=400)
                     else:
                         return Response({'error': f'Voucher requires minimum spend of {voucher.min_spend}'}, status=400)
-                else:
-                    return Response({'error': 'Voucher not available.'}, status=400)
             except Exception as e:
                 print(f"[order-service] Voucher processing error: {e}")
 
         # Final amount after discount + shipping
-        final_amount = (total_amount - membership_discount - voucher_discount) + shipping_fee
+        total_with_shipping = (total_amount - membership_discount - voucher_discount) + shipping_fee
+        if total_with_shipping < 0:
+            total_with_shipping = decimal.Decimal('0')
+        total_with_shipping = total_with_shipping.quantize(decimal.Decimal('0.00'))
 
-        # ── Step 3: Create Order in DB (status=pending) ────────────────────────
-        print(f"[order-service] Step 3: Creating Order (pending) - total: {final_amount}")
+        # ── Step 3: Create Order in DB ────────────────────────
+        initial_status = 'pending_confirmation' if payment_method == 'COD' else 'pending'
+        print(f"[order-service] Step 3: Creating Order ({initial_status}) - total: {total_with_shipping}")
         order = Order.objects.create(
             customer_id=customer_id,
-            total_amount=final_amount,
-            status='pending',
+            status=initial_status,
+            total_amount=total_with_shipping,
             membership_discount=membership_discount,
             voucher_discount=voucher_discount,
             voucher_code=voucher_code,
@@ -163,6 +165,7 @@ class OrderListCreate(APIView):
             shipping_fee=shipping_fee,
             shipping_method=shipping_method
         )
+        _add_status_log(order, initial_status, "Order placed successfully.")
         for item_data in order_items_data:
             OrderItem.objects.create(order=order, **item_data)
 
@@ -170,59 +173,68 @@ class OrderListCreate(APIView):
         if voucher_code and 'ownership' in locals() and ownership:
             ownership.is_used = True
             ownership.order_id = order.id
-            import django.utils.timezone
             ownership.used_at = django.utils.timezone.now()
             ownership.save()
             print(f"[order-service] CustomerVoucher {ownership.id} marked as used for Order {order.id}")
 
-        # ── Step 4: Call pay-service ───────────────────────────────────────────
-        print(f"[order-service] Step 4: Calling pay-service for order {order.id}")
-        try:
-            pay_resp = requests.post(f"{PAY_SERVICE_URL}/payments/", json={
-                'order_id': order.id,
-                'customer_id': customer_id,
-                'amount': str(order.total_amount),
-                'method': payment_method,
-            })
-            _log("pay_service", pay_resp)
-            payment_data = pay_resp.json()
-        except Exception as e:
-            order.status = 'failed'
+        # ── Step 4: Process Payment ───────────────────────────────────────────
+        payment_data = {}
+        if payment_method.upper() == 'COD':
+            # For COD, bypass pay-service and set to pending_confirmation
+            order.status = 'pending_confirmation'
             order.save()
-            return Response({'error': f'pay-service unavailable: {e}'}, status=503)
+            print(f"[order-service] Order {order.id} is COD -> pending_confirmation")
+            payment_data = {'method': 'COD', 'status': 'pending'}
+        else:
+            # Online payment -> Call pay-service
+            print(f"[order-service] Step 4: Calling pay-service for order {order.id}")
+            try:
+                pay_resp = requests.post(f"{PAY_SERVICE_URL}/payments/", json={
+                    'order_id': order.id,
+                    'customer_id': customer_id,
+                    'amount': str(order.total_amount),
+                    'method': payment_method,
+                })
+                _log("pay_service", pay_resp)
+                payment_data = pay_resp.json()
+            except Exception as e:
+                order.status = 'failed'
+                order.save()
+                return Response({'error': f'pay-service unavailable: {e}'}, status=503)
 
-        if payment_data.get('status') != 'success':
-            order.status = 'failed'
+            if payment_data.get('status') != 'success':
+                order.status = 'failed'
+                order.save()
+                print(f"[order-service] Payment FAILED for order {order.id}")
+                return Response({
+                    'error': 'Payment failed',
+                    'payment': payment_data,
+                    'order_id': order.id
+                }, status=402)
+
+            # Payment succeeded -> update order status to processing
+            order.status = 'processing'
             order.save()
-            print(f"[order-service] Payment FAILED for order {order.id}")
-            return Response({
-                'error': 'Payment failed',
-                'payment': payment_data,
-                'order_id': order.id
-            }, status=402)
+            print(f"[order-service] Payment SUCCESS for order {order.id} - txn: {payment_data.get('transaction_id')}")
 
-        # Payment succeeded → update order status to processing
-        order.status = 'processing'
-        order.save()
-        print(f"[order-service] Payment SUCCESS for order {order.id} - txn: {payment_data.get('transaction_id')}")
+        # ── Step 4.5: Update Stock (Inventory) ───────────────────────────────
+        print(f"[order-service] Step 4.5: Updating stock for order items...")
+        for item_data in order_items_data:
+            book_id = item_data['book_id']
+            qty = item_data['quantity']
+            try:
+                inv_resp = requests.post(f"{BOOK_SERVICE_URL}/books/{book_id}/inventory/", json={
+                    'change': -qty
+                })
+                print(f"[order-service] Stock updated for book {book_id}: -{qty} (Status: {inv_resp.status_code})")
+            except Exception as e:
+                print(f"[order-service] FAILED to update stock for book {book_id}: {e}")
 
-        # ── Step 5: Call ship-service ──────────────────────────────────────────
-        print(f"[order-service] Step 5: Calling ship-service for order {order.id}")
-        try:
-            ship_resp = requests.post(f"{SHIP_SERVICE_URL}/shipments/", json={
-                'order_id': order.id,
-                'customer_id': customer_id,
-                'address': shipping_address or 'Default Address',
-                'shipping_method': shipping_method,
-            })
-            _log("ship_service", ship_resp)
-            shipment_data = ship_resp.json()
-        except Exception as e:
-            # Ship failure doesn't roll back payment, just log it
-            print(f"[order-service] ship-service error: {e}")
-            shipment_data = {}
-
-        print(f"[order-service] Order {order.id} COMPLETED - shipment: {shipment_data.get('tracking_code')}")
+        # ── Step 5: Defer Ship Service Call ────────────────────────────────────
+        # Shipment creation is now deferred until Staff clicks "Mark Ready for Pickup" 
+        # (Option B Flow).
+        shipment_data = {'status': 'pending_dispatch'}
+        print(f"[order-service] Order {order.id} Checkout Completed - Payment: {payment_data.get('status')} - Status: {order.status}")
 
         # Return full checkout summary
         return Response({
@@ -241,11 +253,23 @@ class OrderListCreate(APIView):
         }, status=201)
 
     def get(self, request):
+        status = request.query_params.get('status')
+        days = request.query_params.get('days')
         customer_id = request.query_params.get('customer_id')
+
+        queryset = Order.objects.all()
+
         if customer_id:
-            orders = Order.objects.filter(customer_id=customer_id).order_by('-created_at')
-        else:
-            orders = Order.objects.all().order_by('-created_at')
+            queryset = queryset.filter(customer_id=customer_id)
+        if status:
+            queryset = queryset.filter(status=status)
+        if days:
+            from datetime import timedelta
+            from django.utils import timezone
+            cutoff = timezone.now() - timedelta(days=int(days))
+            queryset = queryset.filter(created_at__gte=cutoff)
+
+        orders = queryset.order_by('-created_at')
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -273,10 +297,34 @@ class OrderStatusUpdate(APIView):
                 return Response({'error': f'Invalid status. Must be one of: {valid}'}, status=400)
             order.status = new_status
             order.save()
+            _add_status_log(order, new_status, "Manual status adjustment by Staff.")
             print(f"[order-service] Order {pk} status updated to: {new_status}")
             
-            # If delivered → Add points to customer
-            if new_status == 'delivered':
+            # If status becomes ready_for_pickup, dispatch to ship-service (Option B Flow)
+            if new_status == 'ready_for_pickup':
+                print(f"[order-service] Dispatching order {pk} to ship-service...")
+                try:
+                    ship_resp = requests.post(f"{SHIP_SERVICE_URL}/shipments/", json={
+                        'order_id': order.id,
+                        'customer_id': order.customer_id,
+                        'address': order.shipping_address or 'Default Address',
+                        'shipping_method': order.shipping_method,
+                        'status': 'ready_for_pickup',
+                    })
+                    _log("ship_service_dispatch", ship_resp)
+                except Exception as e:
+                    print(f"[order-service] Failed to dispatch to ship-service: {e}")
+            
+            # Sync other non-ready_for_pickup updates if a shipment exists
+            elif new_status in ['cancelled', 'completed', 'delivering']:
+                try:
+                    ship_resp = requests.patch(f"{SHIP_SERVICE_URL}/shipments/order/{order.id}/", json={'status': new_status})
+                    print(f"[order-service] Synced status '{new_status}' to ship-service. Status Code: {ship_resp.status_code}")
+                except Exception as e:
+                    print(f"[order-service] Error syncing update to ship-service: {e}")
+            
+            # If completed -> Add points to customer
+            if new_status == 'completed':
                 try:
                     requests.post(f"{CUSTOMER_SERVICE_URL}/customers/{order.customer_id}/wallet/add-points/", json={
                         'amount': order.points_generated,
@@ -315,17 +363,22 @@ class OrderCancelView(APIView):
     def post(self, request, pk):
         try:
             order = Order.objects.get(pk=pk)
-            if order.status not in ['pending', 'processing']:
+            if order.status not in ['pending', 'pending_confirmation', 'processing']:
                 return Response({'error': f'Cannot cancel order in {order.status} state.'}, status=400)
             
             order.status = 'cancelled'
             order.save()
+            _add_status_log(order, 'cancelled', "Order cancelled by user or system.")
             
-            # Notify ship-service to cancel shipment if exists
+            # Sync cancellation with ship-service
             try:
-                requests.patch(f"{SHIP_SERVICE_URL}/shipments/order/{pk}/status/", json={'status': 'cancelled'})
-            except Exception as e:
-                print(f"[order-service][cancel] Could not notify ship-service: {e}")
+                requests.patch(f"{SHIP_SERVICE_URL}/shipments/order/{pk}/", json={'status': 'cancelled'})
+            except: pass
+
+            # Sync payment status with pay-service
+            try:
+                requests.patch(f"{PAY_SERVICE_URL}/payments/order/{pk}/", json={'status': 'cancelled'})
+            except: pass
 
             print(f"[order-service] Order {pk} CANCELLED by user.")
             return Response(OrderSerializer(order).data)
@@ -342,6 +395,16 @@ class OrderDeleteView(APIView):
             if order.status != 'cancelled':
                 return Response({'error': 'Only cancelled orders can be deleted.'}, status=400)
             
+            # Sync deletion with ship-service
+            try:
+                requests.delete(f"{SHIP_SERVICE_URL}/shipments/order/{pk}/")
+            except: pass
+
+            # Sync payment deletion with pay-service
+            try:
+                requests.delete(f"{PAY_SERVICE_URL}/payments/order/{pk}/")
+            except: pass
+
             order.delete()
             print(f"[order-service] Order {pk} DELETED.")
             return Response({'message': 'Order deleted successfully.'}, status=200)
@@ -410,12 +473,36 @@ class RedeemVoucher(APIView):
         try:
             voucher = Voucher.objects.get(pk=voucher_id, is_active=True)
             
-            # Check limits
+            # Check if customer already owns this voucher (avoid duplicates)
+            existing = CustomerVoucher.objects.filter(customer_id=customer_id, voucher=voucher).exists()
+            if existing:
+                return Response({'error': 'You have already redeemed this voucher.'}, status=400)
+
+            # Check Global limits
             if voucher.redeemed_quantity >= voucher.max_quantity:
                 return Response({'error': 'This voucher has reached its redemption limit.'}, status=400)
             
+            # Fetch customer wallet/level from customer-service
+            try:
+                cust_r = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/")
+                if cust_r.status_code != 200:
+                    return Response({'error': 'Could not verify customer profile.'}, status=400)
+                customer_data = cust_r.json()
+                wallet = customer_data.get('wallet')
+                current_level_id = wallet.get('current_level', {}).get('id') if wallet else None
+            except Exception as e:
+                return Response({'error': f'customer-service error: {e}'}, status=503)
+
+            # Check Minimum Membership Level
+            if voucher.min_points_level_id:
+                if not current_level_id or current_level_id < voucher.min_points_level_id:
+                    return Response({'error': 'Your membership level is not high enough to redeem this voucher.'}, status=400)
+
             # Check points (Call customer-service)
             if voucher.point_cost > 0:
+                if not wallet or wallet.get('usable_points', 0) < voucher.point_cost:
+                    return Response({'error': 'Insufficient points to redeem this voucher.'}, status=400)
+
                 spend_payload = {
                     'amount': -voucher.point_cost,
                     'transaction_type': 'SPEND',
@@ -423,7 +510,7 @@ class RedeemVoucher(APIView):
                 }
                 spend_r = requests.post(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/wallet/add-points/", json=spend_payload)
                 if spend_r.status_code != 200:
-                    return Response({'error': 'Insufficient points to redeem this voucher.'}, status=400)
+                    return Response({'error': 'Failed to deduct points.'}, status=400)
             
             # Create ownership
             CustomerVoucher.objects.create(

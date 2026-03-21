@@ -122,3 +122,12 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Microservice URLs
+BOOK_SERVICE_URL = "http://book-service:8000"
+CUSTOMER_SERVICE_URL = "http://customer-service:8000"
+CART_SERVICE_URL = "http://cart-service:8000"
+STAFF_SERVICE_URL = "http://staff-service:8000"
+ORDER_SERVICE_URL = "http://order-service:8000"
+COMMENT_RATE_SERVICE_URL = "http://comment-rate-service:8006"
+SHIP_SERVICE_URL = "http://ship-service:8000"

@@ -2,7 +2,8 @@ from django.contrib import admin
 from django.urls import path
 from app.views import (
     CustomerListCreate, CustomerDetail, LoginView, 
-    AddressListCreate, AddressDetail, WalletDetail, AddPointsView
+    AddressListCreate, AddressDetail, WalletDetail, AddPointsView,
+    MembershipLevelList, PointTransactionListView
 )
 
 urlpatterns = [
@@ -16,4 +17,6 @@ urlpatterns = [
     # Loyalty URLs
     path('customers/<int:customer_id>/wallet/', WalletDetail.as_view(), name='wallet-detail'),
     path('customers/<int:customer_id>/wallet/add-points/', AddPointsView.as_view(), name='add-points'),
+    path('customers/<int:customer_id>/wallet/transactions/', PointTransactionListView.as_view(), name='point-transactions'),
+    path('membership-levels/', MembershipLevelList.as_view(), name='membership-level-list'),
 ]

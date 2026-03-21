@@ -83,6 +83,13 @@
                 </a>
 
                 <div class="flex-1 flex flex-col">
+                    {% if book.category_name %}
+                    <div class="mb-2">
+                        <span class="inline-block px-2 py-1 bg-emerald-100/80 text-emerald-700 text-[10px] font-black uppercase tracking-wider rounded-md">
+                            {{ book.category_name }}
+                        </span>
+                    </div>
+                    {% endif %}
                     <a href="/books/{{ book.id }}/" class="text-lg font-bold text-slate-800 leading-snug mb-1 line-clamp-2 group-hover:text-indigo-600 transition-colors">
                         {{ book.title }}
                     </a>

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Order, OrderItem, Voucher, CustomerVoucher
+from .models import Order, OrderItem, Voucher, CustomerVoucher, OrderStatusLog
 
 class OrderItemSerializer(serializers.ModelSerializer):
     subtotal = serializers.ReadOnlyField()
@@ -8,8 +8,14 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = ['id', 'book_id', 'book_title', 'quantity', 'unit_price', 'subtotal']
 
+class OrderStatusLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderStatusLog
+        fields = ['status', 'notes', 'created_at']
+
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    status_history = OrderStatusLogSerializer(source='status_logs', many=True, read_only=True)
 
     class Meta:
         model = Order
@@ -17,7 +23,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'customer_id', 'total_amount', 'status', 
             'membership_discount', 'voucher_discount', 'voucher_code', 'points_generated',
             'shipping_address', 'shipping_fee', 'shipping_method', 
-            'created_at', 'updated_at', 'items'
+            'created_at', 'updated_at', 'items', 'status_history'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 

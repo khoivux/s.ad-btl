@@ -1,44 +1,107 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Review
-from .serializers import ReviewSerializer
-from django.db.models import Avg, Count
+from pymongo import MongoClient
+import os
 
-class ReviewListCreate(APIView):
-    """
-    GET /reviews/<book_id>/ → Returns all reviews for a book, plus avg rating & count.
-    POST /reviews/ → Create or Update a review. (Upsert).
-    """
-    def get(self, request, book_id):
-        reviews = Review.objects.filter(book_id=book_id).order_by('-created_at')
-        serializer = ReviewSerializer(reviews, many=True)
-        
-        stats = Review.objects.filter(book_id=book_id).aggregate(
-            avg_rating=Avg('rating'),
-            total_reviews=Count('id')
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://mongodb:27017/")
+mongo_client = MongoClient(MONGO_URL)
+db = mongo_client['bookstore']
+books_collection = db['books']
+
+try:
+    books_collection.create_index([("title", "text"), ("author", "text")])
+except Exception as e:
+    print(f"MongoDB index setup error: {e}")
+
+class CatalogSyncView(APIView):
+    def post(self, request):
+        book_data = request.data
+        if 'id' not in book_data:
+            return Response({'error': 'id required'}, status=400)
+            
+        book_id = book_data['id']
+        book_data['_id'] = book_id
+        if 'id' in book_data:
+            del book_data['id']
+            
+        books_collection.update_one(
+            {'_id': book_id},
+            {'$set': book_data},
+            upsert=True
         )
+        return Response({'status': 'synced', 'book_id': book_id})
+
+class CatalogDeleteSyncView(APIView):
+    def delete(self, request, book_id):
+        books_collection.delete_one({'_id': book_id})
+        return Response({'status': 'deleted', 'book_id': book_id})
+
+class CatalogListView(APIView):
+    def get(self, request):
+        query = {}
         
+        q = request.query_params.get('q')
+        if q:
+            query['$text'] = {'$search': q}
+            
+        cat_id = request.query_params.get('category_id')
+        if cat_id:
+            query['category'] = int(cat_id)
+            
+        min_p = request.query_params.get('min_price')
+        if min_p:
+            query['price'] = query.get('price', {})
+            query['price']['$gte'] = float(min_p)
+            
+        max_p = request.query_params.get('max_price')
+        if max_p:
+            query['price'] = query.get('price', {})
+            query['price']['$lte'] = float(max_p)
+            
+        sort_by = request.query_params.get('sort_by', '_id')
+        order = request.query_params.get('order', 'asc')
+        sort_dir = 1 if order == 'asc' else -1
+
+        cursor = books_collection.find(query)
+        
+        # Pagination
+        limit = int(request.query_params.get('limit', 20))
+        offset = int(request.query_params.get('offset', 0))
+        cursor = cursor.skip(offset).limit(limit)
+
+        results = []
+        for doc in cursor:
+            doc['id'] = doc.pop('_id')
+            doc['avg_rating'] = doc.get('avg_rating', 0)
+            doc['total_reviews'] = doc.get('total_reviews', 0)
+            results.append(doc)
+
         return Response({
-            'avg_rating': round(stats['avg_rating'] or 0, 1),
-            'total_reviews': stats['total_reviews'],
-            'reviews': serializer.data
+            'total': books_collection.count_documents(query),
+            'results': results
         })
 
-    def post(self, request):
-        customer_id = request.data.get('customer_id')
-        book_id = request.data.get('book_id')
-        rating = request.data.get('rating')
-        comment = request.data.get('comment', '')
-        customer_name = request.data.get('customer_name', 'User')
-
-        if not customer_id or not book_id or not rating:
-            return Response({'error': 'customer_id, book_id and rating are required'}, status=400)
-
-        # Upsert
-        review, created = Review.objects.update_or_create(
-            customer_id=customer_id,
-            book_id=book_id,
-            defaults={'rating': rating, 'comment': comment, 'customer_name': customer_name}
-        )
+class CatalogDetailView(APIView):
+    def get(self, request, book_id):
+        doc = books_collection.find_one({'_id': book_id})
+        if not doc:
+            return Response({'error': 'Not found'}, status=404)
+        doc['id'] = doc.pop('_id')
         
-        return Response(ReviewSerializer(review).data, status=201 if created else 200)
+        doc['avg_rating'] = doc.get('avg_rating', 0)
+        doc['total_reviews'] = doc.get('total_reviews', 0)
+        
+        return Response(doc)
+
+class CatalogCategorySyncView(APIView):
+    def put(self, request, category_id):
+        new_name = request.data.get('category_name')
+        if not new_name:
+             return Response({'error': 'category_name required'}, status=400)
+             
+        # Bulk update embedded category_name in all books having this category_id
+        result = books_collection.update_many(
+            {'category': category_id},
+            {'$set': {'category_name': new_name}}
+        )
+        return Response({'status': 'updated', 'matched_count': result.matched_count})

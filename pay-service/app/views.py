@@ -39,3 +39,34 @@ class PaymentDetail(APIView):
             return Response(PaymentSerializer(payment).data)
         except Payment.DoesNotExist:
             return Response({'error': 'Payment not found'}, status=404)
+
+class PaymentByOrder(APIView):
+    """
+    GET   /payments/order/<order_id>/ → Get payment for order.
+    PATCH /payments/order/<order_id>/ → Update payment status (e.g., refund).
+    """
+    def get(self, request, order_id):
+        try:
+            payment = Payment.objects.get(order_id=order_id)
+            return Response(PaymentSerializer(payment).data)
+        except Payment.DoesNotExist:
+            return Response({'error': 'Payment not found'}, status=404)
+
+    def patch(self, request, order_id):
+        try:
+            payment = Payment.objects.get(order_id=order_id)
+            new_status = request.data.get('status')
+            if new_status:
+                payment.status = new_status
+                payment.save()
+            return Response(PaymentSerializer(payment).data)
+        except Payment.DoesNotExist:
+            return Response({'error': 'Payment not found'}, status=404)
+
+    def delete(self, request, order_id):
+        try:
+            payment = Payment.objects.get(order_id=order_id)
+            payment.delete()
+            return Response(status=204)
+        except Payment.DoesNotExist:
+            return Response({'error': 'Payment not found'}, status=404)

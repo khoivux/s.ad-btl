@@ -48,9 +48,14 @@
                                 </div>
                             </div>
 
-                            <div class="pt-2">
-                                <p class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total Accumulated</p>
-                                <p class="text-lg font-bold">{{ customer.wallet.accumulated_points|default:0 }} pts</p>
+                            <div class="pt-2 flex justify-between items-end">
+                                <div>
+                                    <p class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total Accumulated</p>
+                                    <p class="text-lg font-bold">{{ customer.wallet.accumulated_points|default:0 }} pts</p>
+                                </div>
+                                <button onclick="openPointsModal()" class="text-[10px] font-bold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg border border-white/10 transition-all uppercase tracking-widest">
+                                    History →
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -59,28 +64,9 @@
                     <div class="absolute -right-8 -bottom-8 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl"></div>
                 </div>
 
-                <!-- Point Transactions -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                    <h2 class="text-lg font-bold font-heading text-slate-800 mb-4 text-center">Points History</h2>
-                    <div class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {% for tx in customer.wallet.transactions %}
-                        <div class="flex justify-between items-center p-3 rounded-xl {% if tx.transaction_type == 'EARN' %}bg-green-50{% else %}bg-slate-50{% endif %}">
-                            <div>
-                                <p class="text-xs font-bold text-slate-800">{{ tx.description }}</p>
-                                <p class="text-[10px] text-slate-500">{{ tx.created_at|date:"M d, Y" }}</p>
-                            </div>
-                            <div class="font-black text-sm {% if tx.points > 0 %}text-green-600{% else %}text-slate-600{% endif %}">
-                                {% if tx.points > 0 %}+{% endif %}{{ tx.points }}
-                            </div>
-                        </div>
-                        {% empty %}
-                        <p class="text-center text-slate-400 text-xs py-4">No transactions yet</p>
-                        {% endfor %}
-                    </div>
-                </div>
-
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                     <h2 class="text-xl font-bold font-heading text-slate-800 mb-4">Personal Info</h2>
+
                     <form id="profile-form" class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
@@ -130,9 +116,9 @@
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     {% if not addr.is_default %}
-                                    <button onclick="setDefaultAddress({{ addr.id }})" class="text-xs text-indigo-600 font-semibold hover:underline">Set Default</button>
+                                    <button onclick="setDefaultAddress('{{ addr.id }}')" class="text-xs text-indigo-600 font-semibold hover:underline">Set Default</button>
                                     {% endif %}
-                                    <button onclick="deleteAddress({{ addr.id }})" class="text-xs text-rose-600 font-semibold hover:underline">Delete</button>
+                                    <button onclick="deleteAddress('{{ addr.id }}')" class="text-xs text-rose-600 font-semibold hover:underline">Delete</button>
                                 </div>
                             </div>
                         </div>
@@ -162,6 +148,7 @@
 
     <!-- Add Address Modal -->
     <div id="address-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+
         <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-8 overflow-hidden animate-in fade-in zoom-in duration-200">
             <h3 class="text-2xl font-bold font-heading text-slate-900 mb-6">Add New Address</h3>
             <form id="address-form" class="space-y-4">
@@ -203,8 +190,102 @@
         </div>
     </div>
 
+    <!-- Points History Modal -->
+    <div id="points-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-8 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold font-heading text-slate-900">Points History</h3>
+                <button onclick="closePointsModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div id="points-history-list" class="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                <!-- Loaded via AJAX -->
+            </div>
+            
+            <div id="load-more-points-container" class="mt-4 text-center hidden">
+                <button onclick="loadMoreTransactions()" class="text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:text-indigo-700 transition-colors">
+                    View More Transactions ↓
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const CUSTOMER_ID = "{{ customer_id }}";
+        let pointsPage = 1;
+
+        // Points History Modal
+        function openPointsModal() {
+            document.getElementById('points-modal').classList.remove('hidden');
+            pointsPage = 1;
+            fetchPointsHistory(false);
+        }
+        function closePointsModal() {
+            document.getElementById('points-modal').classList.add('hidden');
+        }
+
+        // Points History Pagination
+        async function fetchPointsHistory(append = false) {
+            try {
+                const list = document.getElementById('points-history-list');
+                const btnContainer = document.getElementById('load-more-points-container');
+                
+                if (!append) {
+                    list.innerHTML = `
+                        <div class="text-center py-10 animate-pulse">
+                            <div class="w-8 h-8 bg-slate-200 rounded-full mx-auto mb-2"></div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Loading transactions...</p>
+                        </div>
+                    `;
+                    btnContainer.classList.add('hidden');
+                }
+                
+                const r = await fetch(`/api/loyalty/transactions/?page=${pointsPage}`);
+                const data = await r.json();
+                
+                if (!append) list.innerHTML = '';
+                
+                if (data.transactions.length === 0 && !append) {
+                    list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">No transactions yet</p>';
+                    btnContainer.classList.add('hidden');
+                    return;
+                }
+
+                data.transactions.forEach(tx => {
+                    const dateStr = new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const isEarn = tx.amount > 0;
+                    const item = `
+                        <div class="flex justify-between items-center p-3 rounded-xl ${isEarn ? 'bg-green-50' : 'bg-slate-50'}">
+                            <div>
+                                <p class="text-xs font-bold text-slate-800">${tx.description}</p>
+                                <p class="text-[10px] text-slate-500">${dateStr}</p>
+                            </div>
+                            <div class="font-black text-sm ${isEarn ? 'text-green-600' : 'text-slate-600'}">
+                                ${isEarn ? '+' : ''}${tx.amount}
+                            </div>
+                        </div>
+                    `;
+                    list.insertAdjacentHTML('beforeend', item);
+                });
+
+                if (data.has_more) {
+                    btnContainer.classList.remove('hidden');
+                } else {
+                    btnContainer.classList.add('hidden');
+                }
+            } catch (err) {
+                console.error('Points History Error:', err);
+                const list = document.getElementById('points-history-list');
+                if (!append) list.innerHTML = '<p class="text-center text-rose-400 text-[10px] py-4">Error loading transactions</p>';
+            }
+        }
+
+        function loadMoreTransactions() {
+            pointsPage++;
+            fetchPointsHistory(true);
+        }
 
         // Profile Update
         document.getElementById('profile-form').addEventListener('submit', async (e) => {
@@ -316,5 +397,7 @@
         // Init
         fetchCustomerVouchers();
     </script>
+
+
 </body>
 </html>

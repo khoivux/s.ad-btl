@@ -22,15 +22,19 @@
             <div class="flex items-center gap-4">
                 <h1 class="text-3xl font-black text-slate-800">Order Details</h1>
                 <div class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider
-                    {% if order.status == 'delivered' %}bg-green-100 text-green-700
+                    {% if order.status == 'completed' %}bg-green-100 text-green-700
                     {% elif order.status == 'cancelled' %}bg-red-100 text-red-700
-                    {% elif order.status == 'shipping' %}bg-blue-100 text-blue-700
-                    {% elif order.status == 'processing' %}bg-indigo-100 text-indigo-700
+                    {% elif order.status == 'delivering' %}bg-orange-100 text-orange-700
+                    {% elif order.status == 'ready_for_pickup' %}bg-teal-100 text-teal-700
+                    {% elif order.status == 'processing' %}bg-blue-100 text-blue-700
+                    {% elif order.status == 'pending_confirmation' %}bg-yellow-100 text-yellow-700
                     {% else %}bg-amber-100 text-amber-700{% endif %}">
-                    {% if order.status == 'delivered' %}✅ Delivered
+                    {% if order.status == 'completed' %}✅ Completed
                     {% elif order.status == 'cancelled' %}🚫 Cancelled
-                    {% elif order.status == 'shipping' %}🚚 Shipping
+                    {% elif order.status == 'delivering' %}🚚 Delivering
+                    {% elif order.status == 'ready_for_pickup' %}📦 Ready for Pickup
                     {% elif order.status == 'processing' %}⚙️ Processing
+                    {% elif order.status == 'pending_confirmation' %}⏳ Pending Confirmation
                     {% else %}⏳ {{ order.status|title }}{% endif %}
                 </div>
             </div>
@@ -40,7 +44,7 @@
             <a href="/orders/{{ order.id }}/tracking/" class="bg-indigo-50 text-indigo-600 px-6 py-3 rounded-2xl font-bold hover:bg-indigo-100 transition-all text-sm">
                 Track Order
             </a>
-            {% if order.status == 'pending' or order.status == 'processing' %}
+            {% if order.status == 'pending' or order.status == 'pending_confirmation' or order.status == 'processing' %}
             <button onclick="confirmCancel()" class="bg-red-50 text-red-600 px-6 py-3 rounded-2xl font-bold hover:bg-red-100 transition-all text-sm">
                 Cancel Order
             </button>

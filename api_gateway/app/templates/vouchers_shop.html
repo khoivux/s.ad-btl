@@ -65,10 +65,20 @@
 
     <script>
         let userPoints = 0;
+        let userLevelId = null;
+        let membershipLevels = [];
 
         async function init() {
+            await fetchMembershipLevels();
             await fetchProfile();
             await fetchVouchers();
+        }
+
+        async function fetchMembershipLevels() {
+            try {
+                const res = await fetch('/api/membership-levels/');
+                membershipLevels = await res.json();
+            } catch (e) { console.error("Error fetching levels:", e); }
         }
 
         async function fetchProfile() {
@@ -76,6 +86,7 @@
                 const res = await fetch('/api/loyalty/wallet/');
                 const data = await res.json();
                 userPoints = data.usable_points;
+                userLevelId = data.current_level ? data.current_level.id : null;
                 document.getElementById('points-display').textContent = `${userPoints.toLocaleString()} pts`;
             } catch (e) {
                 console.error("Error fetching wallet:", e);
@@ -97,16 +108,32 @@
 
                 vouchers.forEach(v => {
                     const canAfford = userPoints >= v.point_cost;
+                    const hasRequiredLevel = !v.min_points_level_id || (userLevelId && userLevelId >= v.min_points_level_id);
+                    const isEligible = canAfford && hasRequiredLevel;
+
                     const discountValue = v.is_percentage ? `${v.discount_amount}%` : `$${v.discount_amount}`;
+                    const tierReq = v.min_points_level_id 
+                        ? membershipLevels.find(l => l.id == v.min_points_level_id)
+                        : null;
+
+                    const tierBadge = tierReq 
+                        ? `<div class="mt-2 text-[10px] font-black uppercase tracking-widest ${hasRequiredLevel ? 'text-emerald-500' : 'text-red-500'} flex items-center gap-1">
+                             ${hasRequiredLevel ? '✅' : '🔒'} Required: ${tierReq.name}
+                           </div>`
+                        : '';
+
                     const card = `
-                        <div class="bg-white rounded-3xl border border-slate-200 p-6 hover:shadow-2xl transition-all group flex flex-col h-full overflow-hidden relative">
+                        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-2xl transition-all group flex flex-col h-full overflow-hidden relative ${!hasRequiredLevel ? 'opacity-75 grayscale-[0.5]' : ''}">
                             <!-- Dash border design -->
                             <div class="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-slate-50 rounded-full border border-slate-200"></div>
                             <div class="absolute -left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-slate-50 rounded-full border border-slate-200"></div>
                             
                             <div class="mb-6 flex justify-between items-start">
-                                <div class="bg-indigo-100 text-indigo-700 font-black px-4 py-1.5 rounded-full text-xs">
-                                    ${discountValue} OFF
+                                <div>
+                                    <div class="bg-indigo-100 text-indigo-700 font-black px-4 py-1.5 rounded-full text-xs inline-block">
+                                        ${discountValue} OFF
+                                    </div>
+                                    ${tierBadge}
                                 </div>
                                 <span class="text-slate-400 text-[10px] font-black uppercase tracking-widest">#${v.code}</span>
                             </div>
@@ -122,10 +149,10 @@
                                     <span class="text-xs uppercase">points</span>
                                 </div>
                                 <button onclick="redeemVoucher(${v.id}, ${v.point_cost})" 
-                                    ${!canAfford ? 'disabled' : ''}
+                                    ${!isEligible ? 'disabled' : ''}
                                     class="px-6 py-3 rounded-2xl font-black text-sm transition-all shadow-lg 
-                                    ${canAfford ? 'bg-slate-900 text-white hover:bg-indigo-600 shadow-indigo-500/20 active:scale-95 cursor-pointer' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}">
-                                    ${canAfford ? 'Redeem Now' : 'Not Enough Points'}
+                                    ${isEligible ? 'bg-slate-900 text-white hover:bg-indigo-600 shadow-indigo-500/20 active:scale-95 cursor-pointer' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}">
+                                    ${!hasRequiredLevel ? 'Level Too Low' : (canAfford ? 'Redeem Now' : 'Not Enough Points')}
                                 </button>
                             </div>
                         </div>
@@ -139,12 +166,13 @@
         }
 
         async function redeemVoucher(vid, cost) {
+            const csrfToken = document.cookie.split('; ').find(r => r.startsWith('csrftoken=')).split('=')[1];
             if (!confirm(`Redeem this voucher for ${cost} points?`)) return;
             
             try {
                 const res = await fetch('/api/vouchers/redeem/', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
                     body: JSON.stringify({ voucher_id: vid })
                 });
                 

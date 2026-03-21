@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Customer, Address, MembershipLevel, LoyaltyWallet, PointTransaction
-from .serializers import CustomerSerializer, AddressSerializer, LoyaltyWalletSerializer
+from .serializers import CustomerSerializer, AddressSerializer, LoyaltyWalletSerializer, MembershipLevelSerializer
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
@@ -151,15 +151,19 @@ class WalletDetail(APIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class AddPointsView(APIView):
     def post(self, request, customer_id):
-        amount = request.data.get('amount') or 0
+        amount = int(request.data.get('amount') or 0)
         desc = request.data.get('description') or 'Purchase reward'
+        txn_type = request.data.get('transaction_type') or ('EARN' if amount >= 0 else 'SPEND')
         
         try:
             wallet = LoyaltyWallet.objects.get(customer_id=customer_id)
-            wallet.usable_points += int(amount)
-            wallet.accumulated_points += int(amount)
+            wallet.usable_points += amount
             
-            # Re-evaluate Level
+            # Only increase accumulated_points if earning
+            if amount > 0:
+                wallet.accumulated_points += amount
+            
+            # Re-evaluate Level (based on accumulated points)
             levels = MembershipLevel.objects.all().order_by('-min_points')
             for level in levels:
                 if wallet.accumulated_points >= level.min_points:
@@ -172,7 +176,7 @@ class AddPointsView(APIView):
             PointTransaction.objects.create(
                 wallet=wallet,
                 amount=amount,
-                transaction_type='EARN',
+                transaction_type=txn_type,
                 description=desc
             )
             
@@ -181,3 +185,33 @@ class AddPointsView(APIView):
             return Response({'error': 'Wallet not found'}, status=404)
         except Exception as e:
             return Response({'error': str(e)}, status=400)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PointTransactionListView(APIView):
+    def get(self, request, customer_id):
+        try:
+            wallet = LoyaltyWallet.objects.get(customer_id=customer_id)
+            transactions = wallet.transactions.all().order_by('-created_at')
+            
+            # Simple pagination
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
+            start = (page - 1) * page_size
+            end = start + page_size
+            
+            from .serializers import PointTransactionSerializer
+            serializer = PointTransactionSerializer(transactions[start:end], many=True)
+            
+            return Response({
+                'transactions': serializer.data,
+                'has_more': transactions.count() > end,
+                'total': transactions.count()
+            })
+        except LoyaltyWallet.DoesNotExist:
+            return Response({'error': 'Wallet not found'}, status=404)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class MembershipLevelList(APIView):
+    def get(self, request):
+        levels = MembershipLevel.objects.all().order_by('id')
+        return Response(MembershipLevelSerializer(levels, many=True).data)

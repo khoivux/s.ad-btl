@@ -1,0 +1,161 @@
+<!-- Reusable Order Details & Tracking Modal -->
+<div id="order-detail-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+        <!-- Header -->
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div>
+                <h3 class="text-xl font-bold font-heading text-slate-900">Order #<span id="modal-order-id">---</span></h3>
+                <p class="text-xs text-slate-500 mt-1" id="modal-order-date">Date: ---</p>
+            </div>
+            <button onclick="closeOrderModal()" class="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+            <!-- Order Status Banner -->
+            <div id="modal-status-banner" class="p-4 rounded-2xl flex items-center justify-between">
+                <span class="text-sm font-bold uppercase tracking-widest" id="modal-status-text">STATUS</span>
+                <span class="text-xs font-medium px-3 py-1 bg-white/20 rounded-full" id="modal-payment-method">Payment: ---</span>
+            </div>
+
+            <!-- Items -->
+            <div>
+                <h4 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Ordered Items</h4>
+                <div id="modal-items-list" class="space-y-3">
+                    <!-- Items injected here -->
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center text-lg font-black text-slate-900">
+                    <span>Total Amount</span>
+                    <span id="modal-total-amount">$0.00</span>
+                </div>
+            </div>
+
+            <!-- Shipping Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-50 rounded-2xl p-4">
+                    <h4 class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Delivery Address</h4>
+                    <pre id="modal-shipping-address" class="text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed"></pre>
+                </div>
+                <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
+                    <h4 class="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Shipment Info</h4>
+                    <div id="modal-shipment-content" class="text-xs text-indigo-900">
+                        <!-- Shipment data injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tracking Timeline -->
+            <div>
+                <h4 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Live Tracking</h4>
+                <div id="modal-tracking-timeline" class="relative pl-8 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                    <!-- Tracking steps injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+            <button onclick="closeOrderModal()" class="px-6 py-2 bg-slate-800 text-white text-sm font-bold rounded-xl hover:bg-slate-900 transition-all shadow-lg shadow-slate-200">
+                Close View
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+async function viewOrderDetails(orderId) {
+    const modal = document.getElementById('order-detail-modal');
+    modal.classList.remove('hidden');
+    
+    // Reset content
+    document.getElementById('modal-order-id').textContent = orderId;
+    document.getElementById('modal-items-list').innerHTML = '<div class="animate-pulse space-y-2"><div class="h-10 bg-slate-100 rounded-xl"></div><div class="h-10 bg-slate-100 rounded-xl"></div></div>';
+    document.getElementById('modal-tracking-timeline').innerHTML = '<div class="text-xs text-slate-400 italic">Fetching tracking data...</div>';
+
+    try {
+        const response = await fetch(`/api/orders/${orderId}/detail/`);
+        const data = await response.json();
+        
+        if (!response.ok) throw new Error(data.error || 'Failed to fetch details');
+
+        const { order, shipment } = data;
+
+        // Update basic info
+        document.getElementById('modal-order-date').textContent = `Placed on: ${new Date(order.created_at).toLocaleString()}`;
+        document.getElementById('modal-total-amount').textContent = `$${order.total_amount}`;
+        document.getElementById('modal-shipping-address').textContent = order.shipping_address;
+        document.getElementById('modal-payment-method').textContent = `Payment: ${order.payment_method}`;
+
+        // Update status banner color
+        const banner = document.getElementById('modal-status-banner');
+        const statusText = document.getElementById('modal-status-text');
+        statusText.textContent = order.status;
+        
+        const statusColors = {
+            'PENDING': 'bg-amber-500 text-white',
+            'PROCESSING': 'bg-indigo-500 text-white',
+            'READY_TO_PICKUP': 'bg-blue-500 text-white',
+            'SHIPPING': 'bg-purple-500 text-white',
+            'DELIVERED': 'bg-emerald-500 text-white',
+            'CANCELLED': 'bg-rose-500 text-white'
+        };
+        banner.className = `p-4 rounded-2xl flex items-center justify-between ${statusColors[order.status] || 'bg-slate-500 text-white'}`;
+
+        // Render Items
+        const itemsList = document.getElementById('modal-items-list');
+        itemsList.innerHTML = order.items.map(item => `
+            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white rounded-lg border border-slate-200 flex items-center justify-center font-bold text-slate-400 text-xs">IMG</div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-800">Book ID #${item.book_id}</p>
+                        <p class="text-[10px] text-slate-500">Quantity: ${item.quantity} × $${item.price}</p>
+                    </div>
+                </div>
+                <div class="text-sm font-black text-slate-900">$${(item.quantity * item.price).toFixed(2)}</div>
+            </div>
+        `).join('');
+
+        // Shipment & Tracking
+        const shipmentContent = document.getElementById('modal-shipment-content');
+        const timeline = document.getElementById('modal-tracking-timeline');
+
+        if (shipment && shipment.id) {
+            shipmentContent.innerHTML = `
+                <p><strong>Shipper ID:</strong> ${shipment.shipper_id || 'Not assigned'}</p>
+                <p class="mt-1"><strong>Estimated:</strong> ${shipment.estimated_delivery || '---'}</p>
+                <p class="mt-1"><strong>Carrier:</strong> ${shipment.carrier || 'Standard internal'}</p>
+            `;
+
+            if (shipment.tracking_history && shipment.tracking_history.length > 0) {
+                timeline.innerHTML = shipment.tracking_history.map((step, idx) => `
+                    <div class="relative">
+                        <div class="absolute -left-8 mt-1 w-6 h-6 rounded-full border-4 border-white shadow-sm flex items-center justify-center ${idx === 0 ? 'bg-indigo-600' : 'bg-slate-300'}">
+                            <div class="w-2 h-2 rounded-full bg-white"></div>
+                        </div>
+                        <p class="text-xs font-black text-slate-800">${step.status}</p>
+                        <p class="text-[10px] text-slate-500">${step.location || '---'} • ${new Date(step.timestamp).toLocaleString()}</p>
+                        ${step.notes ? `<p class="mt-1 text-[10px] text-slate-400 italic">"${step.notes}"</p>` : ''}
+                    </div>
+                `).join('');
+            } else {
+                timeline.innerHTML = '<div class="text-xs text-slate-400 italic">No tracking updates recorded yet.</div>';
+            }
+        } else {
+            shipmentContent.innerHTML = '<p class="text-xs text-rose-500 italic">No shipment record found yet.</p>';
+            timeline.innerHTML = '<div class="text-xs text-slate-400 italic">Tracking will be available once the order is shipped.</div>';
+        }
+
+    } catch (err) {
+        document.getElementById('modal-items-list').innerHTML = `<div class="p-4 bg-rose-50 text-rose-600 rounded-xl text-xs font-bold font-heading">Error: ${err.message}</div>`;
+    }
+}
+
+function closeOrderModal() {
+    document.getElementById('order-detail-modal').classList.add('hidden');
+}
+</script>

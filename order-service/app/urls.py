@@ -17,9 +17,9 @@ urlpatterns = [
     
     # Customer Voucher URLs
     path('vouchers/', VoucherList.as_view(), name='voucher-list'),
+    path('vouchers/redeem/', RedeemVoucher.as_view(), name='voucher-redeem'),
     path('vouchers/<str:code>/', VoucherDetail.as_view(), name='voucher-detail'),
     path('vouchers/customer/<int:customer_id>/', CustomerVouchersView.as_view(), name='customer-vouchers'),
-    path('vouchers/redeem/', RedeemVoucher.as_view(), name='voucher-redeem'),
 
     # Staff Voucher URLs (Internal)
     path('staff/vouchers/', StaffVoucherListCreate.as_view(), name='staff-voucher-list'),

@@ -3,9 +3,11 @@ from django.db import models
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
+        ('pending_confirmation', 'Pending Confirmation'),
         ('processing', 'Processing'),
-        ('shipping', 'Shipping'),
-        ('delivered', 'Delivered'),
+        ('ready_for_pickup', 'Ready for Pickup'),
+        ('delivering', 'Delivering'),
+        ('completed', 'Completed'),
         ('cancelled', 'Cancelled')
     ]
     customer_id = models.IntegerField()
@@ -68,3 +70,12 @@ class CustomerVoucher(models.Model):
 
     def __str__(self):
         return f"Customer {self.customer_id} - {self.voucher.code} (Used: {self.is_used})"
+
+class OrderStatusLog(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='status_logs')
+    status = models.CharField(max_length=50)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Order #{self.order.id} -> {self.status} at {self.created_at}"

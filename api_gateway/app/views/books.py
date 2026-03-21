@@ -1,0 +1,137 @@
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+import requests
+import json
+from .base import BaseProxyView, CustomerRequiredMixin
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+
+# Service URLs
+BOOK_SERVICE_URL = "http://book-service:8000"
+CATALOG_SERVICE_URL = "http://catalog-service:8000"
+COMMENT_RATE_SERVICE_URL = "http://comment-rate-service:8006"
+ORDER_SERVICE_URL = "http://order-service:8000"
+
+class BookListView(BaseProxyView):
+    service_url = CATALOG_SERVICE_URL
+
+    def get(self, request):
+        search_query = request.GET.get('search', '')
+        endpoint = "books/"
+        r = self.proxy_request(request, endpoint, method="GET")
+        
+        data = r.json() if r and r.status_code == 200 else {}
+        books = data.get('results', []) if isinstance(data, dict) else data
+        
+        cat_r = requests.get(f"{BOOK_SERVICE_URL}/categories/")
+        categories = cat_r.json() if cat_r and cat_r.status_code == 200 else []
+        
+        context = {"books": books, "search": search_query, "categories": categories}
+        if 'customer_id' in request.session:
+            context['customer_name'] = request.session.get('customer_name')
+        return render(request, "books.html", context)
+
+
+class BookSearchView(BaseProxyView):
+    service_url = CATALOG_SERVICE_URL
+    
+    def get(self, request):
+        q = request.GET.get('q', '')
+        min_price = request.GET.get('min_price', '')
+        max_price = request.GET.get('max_price', '')
+        sort = request.GET.get('sort', '')
+        category_id = request.GET.get('category_id', '')
+
+        endpoint = "search/"
+        r = self.proxy_request(request, endpoint, method="GET")
+
+        data = r.json() if r and r.status_code == 200 else {}
+        books = data.get('results', []) if isinstance(data, dict) else data
+        
+        cat_r = requests.get(f"{BOOK_SERVICE_URL}/categories/")
+        categories = cat_r.json() if cat_r and cat_r.status_code == 200 else []
+
+        context = {
+            "books": books,
+            "q": q,
+            "min_price": min_price,
+            "max_price": max_price,
+            "sort": sort,
+            "category_id": category_id,
+            "categories": categories
+        }
+        if 'customer_id' in request.session:
+            context['customer_name'] = request.session.get('customer_name')
+            
+        return render(request, "search.html", context)
+
+
+class BookDetailView(BaseProxyView):
+    service_url = CATALOG_SERVICE_URL
+
+    def get(self, request, book_id):
+        # Chi tiết sách - /books/<book_id>/
+        # 1. Fetch book details
+        r = self.proxy_request(request, f"books/{book_id}/", method="GET")
+        if not r or r.status_code == 404:
+            return render(request, "404.html", status=404)
+        if r.status_code != 200:
+            return redirect('book_list')
+            
+        book = r.json()
+
+        # 2. Fetch reviews
+        reviews_data = {'avg_rating': 0, 'total_reviews': 0, 'reviews': []}
+        try:
+            rr = requests.get(f"{COMMENT_RATE_SERVICE_URL}/reviews/{book_id}/")
+            if rr.status_code == 200:
+                reviews_data = rr.json()
+        except Exception as e:
+            print(f"[{self.__class__.__name__}] Reviews Exception: {e}")
+
+        # 3. Check purchase
+        has_purchased = False
+        customer_id = request.session.get('customer_id')
+        if customer_id:
+            try:
+                cr = requests.get(f"{ORDER_SERVICE_URL}/api/check-purchase/?customer_id={customer_id}&book_id={book_id}")
+                if cr.status_code == 200:
+                    has_purchased = cr.json().get('has_purchased', False)
+            except Exception as e:
+                print(f"[{self.__class__.__name__}] CheckPurchase Exception: {e}")
+
+        context = {
+            "book": book,
+            "reviews_data": reviews_data,
+            "has_purchased": has_purchased,
+            "customer_id": customer_id,
+            "customer_name": request.session.get('customer_name')
+        }
+        return render(request, "book_detail.html", context)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class BookReviewSubmitView(CustomerRequiredMixin, BaseProxyView):
+    service_url = COMMENT_RATE_SERVICE_URL
+
+    def post(self, request, book_id):
+        # Gửi đánh giá sách - /api/books/<book_id>/reviews/
+        try:
+            data = json.loads(request.body)
+            payload = {
+                'customer_id': request.session.get('customer_id'),
+                'book_id': book_id,
+                'rating': data.get('rating'),
+                'comment': data.get('comment', ''),
+                'customer_name': request.session.get('customer_name', 'User')
+            }
+            
+            r = self.proxy_request(request, "reviews/", method="POST", payload=payload)
+            if not r:
+                return JsonResponse({'error': 'Service Unavailable'}, status=503)
+                
+            return JsonResponse(r.json(), status=r.status_code)
+            
+        except Exception as e:
+            print(f"[{self.__class__.__name__}] Exception: {e}")
+            return JsonResponse({'error': str(e)}, status=500)

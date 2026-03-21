@@ -6,6 +6,9 @@ import random
 import string
 from .models import Shipment, ShippingMethod
 from .serializers import ShipmentSerializer, ShippingMethodSerializer
+import requests
+
+ORDER_SERVICE_URL = "http://order-service:8000"
 
 class ShipmentCreate(APIView):
     """
@@ -60,9 +63,54 @@ class ShipmentStatusUpdate(APIView):
             shipment.status = new_status
             shipment.save()
             print(f"[ship-service] Shipment {pk} status updated to: {new_status}")
+            
+            # Sync status back to order-service
+            if new_status in ['delivering', 'completed', 'cancelled']:
+                try:
+                    order_resp = requests.patch(f"{ORDER_SERVICE_URL}/orders/{shipment.order_id}/status/", json={'status': new_status})
+                    print(f"[ship-service] Synced status '{new_status}' back to order-service. Status Code: {order_resp.status_code}")
+                except Exception as e:
+                    print(f"[ship-service] Error syncing status back to order-service: {e}")
+                    
             return Response(ShipmentSerializer(shipment).data)
         except Shipment.DoesNotExist:
             return Response({'error': 'Shipment not found'}, status=404)
+
+class AvailableShipments(APIView):
+    """
+    GET /shipments/available/ → Returns shipments that are ready for pickup.
+    """
+    def get(self, request):
+        days = request.query_params.get('days')
+        queryset = Shipment.objects.filter(status='ready_for_pickup')
+
+        if days:
+            from datetime import timedelta
+            from django.utils import timezone
+            cutoff = timezone.now() - timedelta(days=int(days))
+            queryset = queryset.filter(created_at__gte=cutoff)
+
+        shipments = queryset.order_by('created_at')
+        return Response(ShipmentSerializer(shipments, many=True).data)
+
+class ActiveShipments(APIView):
+    """
+    GET /shipments/active/ → Returns shipments that are currently delivering.
+    (In a real app, this would be filtered by shipper_id)
+    """
+    def get(self, request):
+        days = request.query_params.get('days')
+        # In a real app, this would be filtered by shipper_id too
+        queryset = Shipment.objects.filter(status__in=['delivering', 'completed'])
+
+        if days:
+            from datetime import timedelta
+            from django.utils import timezone
+            cutoff = timezone.now() - timedelta(days=int(days))
+            queryset = queryset.filter(created_at__gte=cutoff)
+
+        shipments = queryset.order_by('created_at')
+        return Response(ShipmentSerializer(shipments, many=True).data)
 
 class ShippingMethodList(APIView):
     """
@@ -93,5 +141,24 @@ class ShipmentByOrder(APIView):
         try:
             shipment = Shipment.objects.get(order_id=order_id)
             return Response(ShipmentSerializer(shipment).data)
+        except Shipment.DoesNotExist:
+            return Response({'error': 'Shipment not found'}, status=404)
+
+    def patch(self, request, order_id):
+        try:
+            shipment = Shipment.objects.get(order_id=order_id)
+            new_status = request.data.get('status')
+            if new_status:
+                shipment.status = new_status
+                shipment.save()
+            return Response(ShipmentSerializer(shipment).data)
+        except Shipment.DoesNotExist:
+            return Response({'error': 'Shipment not found'}, status=404)
+
+    def delete(self, request, order_id):
+        try:
+            shipment = Shipment.objects.get(order_id=order_id)
+            shipment.delete()
+            return Response(status=204)
         except Shipment.DoesNotExist:
             return Response({'error': 'Shipment not found'}, status=404)

@@ -17,10 +17,9 @@ class ShippingMethod(models.Model):
 
 class Shipment(models.Model):
     STATUS_CHOICES = [
-        ('waiting', 'Waiting (Pending processing)'),
-        ('packing', 'Packing (Preparing your order)'),
-        ('in_transit', 'In Transit (Shipping)'),
-        ('delivered', 'Delivered (Successfully handed over)'),
+        ('ready_for_pickup', 'Ready for Pickup'),
+        ('delivering', 'Delivering'),
+        ('completed', 'Completed (Delivered)'),
         ('cancelled', 'Cancelled'),
     ]
     
@@ -29,7 +28,7 @@ class Shipment(models.Model):
     tracking_code = models.CharField(max_length=50, unique=True, blank=True)
     shipping_method = models.CharField(max_length=50, default='standard')
     address = models.TextField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='waiting')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ready_for_pickup')
     estimated_delivery = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
