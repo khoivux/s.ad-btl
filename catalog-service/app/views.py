@@ -9,9 +9,20 @@ db = mongo_client['bookstore']
 books_collection = db['books']
 
 try:
-    books_collection.create_index([("title", "text"), ("author", "text")])
+    books_collection.create_index([
+        ("title", "text"), 
+        ("author", "text"), 
+        ("description", "text"), 
+        ("isbn", "text")
+    ], weights={
+        "title": 10,
+        "author": 5,
+        "description": 1,
+        "isbn": 10
+    })
 except Exception as e:
     print(f"MongoDB index setup error: {e}")
+
 
 class CatalogSyncView(APIView):
     def post(self, request):
@@ -24,11 +35,14 @@ class CatalogSyncView(APIView):
         if 'id' in book_data:
             del book_data['id']
             
-        books_collection.update_one(
+        # Using replace_one ensures we remove any old problematic fields (like 'language')
+        # that could conflict with MongoDB text indexes.
+        books_collection.replace_one(
             {'_id': book_id},
-            {'$set': book_data},
+            book_data,
             upsert=True
         )
+
         return Response({'status': 'synced', 'book_id': book_id})
 
 class CatalogDeleteSyncView(APIView):
@@ -46,9 +60,27 @@ class CatalogListView(APIView):
             
         cat_id = request.query_params.get('category_id')
         if cat_id:
-            query['category'] = int(cat_id)
+            val = int(cat_id)
+            query['$or'] = [
+                {'category_id': val},
+                {'category': val}
+            ]
+
+            
+        lang_id = request.query_params.get('language_id')
+        if lang_id:
+            query['language_id'] = int(lang_id)
+            
+        format_id = request.query_params.get('format_id')
+        if format_id:
+            query['format_id'] = int(format_id)
+
+        pub_id = request.query_params.get('publisher_id')
+        if pub_id:
+            query['publisher_id'] = int(pub_id)
             
         min_p = request.query_params.get('min_price')
+
         if min_p:
             query['price'] = query.get('price', {})
             query['price']['$gte'] = float(min_p)

@@ -6,23 +6,14 @@ from django.db.models import Q, F
 import requests
 import threading
 
-def _sync_to_catalog(book_data):
-    try:
-        requests.post("http://catalog-service:8000/sync/", json=book_data, timeout=2)
-    except Exception as e:
-        print(f"[{__name__}] sync error: {e}")
-
-def _delete_from_catalog(book_id):
-    try:
-        requests.delete(f"http://catalog-service:8000/sync/{book_id}/", timeout=2)
-    except Exception as e:
-        print(f"[{__name__}] sync delete error: {e}")
+from .utils import sync_book_to_catalog, delete_book_from_catalog
 
 def _sync_category_rename(category_id, new_name):
     try:
         requests.put(f"http://catalog-service:8000/sync/category/{category_id}/", json={"category_name": new_name}, timeout=3)
     except Exception as e:
         print(f"[{__name__}] sync category error: {e}")
+
 
 class CategoryListCreate(APIView):
     def get(self, request):
@@ -105,8 +96,9 @@ class BookListCreate(APIView):
         serializer = BookSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            threading.Thread(target=_sync_to_catalog, args=(serializer.data,)).start()
-            return Response(serializer.data, status=201)
+            # Auto-sync is now handled by model save/delete!
+        return Response(serializer.data, status=201)
+
         return Response(serializer.errors, status=400)
 
 class BookDetail(APIView):
@@ -134,8 +126,9 @@ class BookDetail(APIView):
         try:
             book = Book.objects.get(pk=pk)
             book.delete()
-            threading.Thread(target=_delete_from_catalog, args=(pk,)).start()
+            # Auto-sync is now handled by model save/delete!
             return Response(status=204)
+
         except Book.DoesNotExist:
             return Response({"error": "Book not found"}, status=404)
 
@@ -150,8 +143,9 @@ class BookInventoryUpdate(APIView):
             Book.objects.filter(pk=pk).update(stock=F('stock') + change)
             book = Book.objects.get(pk=pk)
             serialized = BookSerializer(book).data
-            threading.Thread(target=_sync_to_catalog, args=(serialized,)).start()
+            # Auto-sync is now handled by model save/delete!
             return Response(serialized)
+
         except Book.DoesNotExist:
             return Response({"error": "Book not found"}, status=404)
         except Exception as e:

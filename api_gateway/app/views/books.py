@@ -12,6 +12,8 @@ CATALOG_SERVICE_URL = "http://catalog-service:8000"
 COMMENT_RATE_SERVICE_URL = "http://comment-rate-service:8006"
 ORDER_SERVICE_URL = "http://order-service:8000"
 
+RECOMMENDER_SERVICE_URL = "http://recommender-ai-service:8000"
+
 class BookListView(BaseProxyView):
     service_url = CATALOG_SERVICE_URL
 
@@ -26,10 +28,30 @@ class BookListView(BaseProxyView):
         cat_r = requests.get(f"{BOOK_SERVICE_URL}/categories/")
         categories = cat_r.json() if cat_r and cat_r.status_code == 200 else []
         
-        context = {"books": books, "search": search_query, "categories": categories}
+        # Personalized Recommendations
+        recommended_books = []
+        customer_id = request.session.get('customer_id')
+        if customer_id:
+            try:
+                # Call AI Recommender Service
+                recom_r = requests.get(f"{RECOMMENDER_SERVICE_URL}/api/recommendations/{customer_id}/")
+                if recom_r.status_code == 200:
+                    recom_data = recom_r.json()
+                    # We get a list of recommendation objects (with book details)
+                    recommended_books = recom_data.get('recommendations', [])
+            except Exception as e:
+                print(f"[GATEWAY] Recommender Error: {e}")
+
+        context = {
+            "books": books, 
+            "search": search_query, 
+            "categories": categories,
+            "recommended_books": recommended_books
+        }
         if 'customer_id' in request.session:
             context['customer_name'] = request.session.get('customer_name')
         return render(request, "books.html", context)
+
 
 
 class BookSearchView(BaseProxyView):

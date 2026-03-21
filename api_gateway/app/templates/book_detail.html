@@ -60,7 +60,13 @@
                 </div>
                 
                 <h1 class="text-3xl md:text-5xl font-black text-slate-900 mb-2 font-heading tracking-tight leading-tight">{{ book.title }}</h1>
-                <p class="text-xl text-slate-500 mb-6">by {{ book.author }}</p>
+                <p class="text-xl text-slate-500 mb-4">by {{ book.author }}</p>
+                
+                {% if book.description %}
+                <div class="mb-6 text-slate-600 leading-relaxed line-clamp-4">
+                    {{ book.description }}
+                </div>
+                {% endif %}
                 
                 <div class="text-4xl font-black text-indigo-600 mb-8">${{ book.price }}</div>
 
@@ -72,6 +78,54 @@
                     <button class="flex-1 bg-indigo-600 text-white font-bold py-4 px-8 rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-1" onclick="alert('Dummy Buy Now - checkout not mapped')">
                         Buy Now
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Details Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        <!-- Description Full -->
+        <div class="bg-white rounded-3xl p-8 md:p-10 border border-slate-200 shadow-sm">
+            <h2 class="text-xl font-black text-slate-900 font-heading mb-6 flex items-center gap-2">
+                <span class="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center text-sm">📝</span>
+                Description
+            </h2>
+            <div class="text-slate-600 leading-loose prose max-w-none">
+                {{ book.description|default:"No description available for this book yet."|linebreaks }}
+            </div>
+        </div>
+
+        <!-- Specifications -->
+        <div class="bg-white rounded-3xl p-8 md:p-10 border border-slate-200 shadow-sm">
+            <h2 class="text-xl font-black text-slate-900 font-heading mb-6 flex items-center gap-2">
+                <span class="w-8 h-8 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center text-sm">📋</span>
+                Specifications
+            </h2>
+            <div class="space-y-4">
+                <div class="flex justify-between py-3 border-b border-slate-50">
+                    <span class="text-slate-500 font-medium">ISBN-13</span>
+                    <span class="text-slate-900 font-bold font-mono">{{ book.isbn|default:"N/A" }}</span>
+                </div>
+                <div class="flex justify-between py-3 border-b border-slate-50">
+                    <span class="text-slate-500 font-medium">Language</span>
+                    <span class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-bold">{{ book.language_name|default:"General" }}</span>
+                </div>
+                <div class="flex justify-between py-3 border-b border-slate-50">
+                    <span class="text-slate-500 font-medium">Publisher</span>
+                    <span class="text-slate-900 font-bold">{{ book.publisher_name|default:"MicroBookstore" }}</span>
+                </div>
+                <div class="flex justify-between py-3 border-b border-slate-50">
+                    <span class="text-slate-500 font-medium">Format</span>
+                    <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">{{ book.format_name|default:"Standard" }}</span>
+                </div>
+                <div class="flex justify-between py-3 border-b border-slate-50">
+                    <span class="text-slate-500 font-medium">Pages</span>
+                    <span class="text-slate-900 font-bold">{{ book.page_count|default:"Unknown" }} pages</span>
+                </div>
+                <div class="flex justify-between py-3">
+                    <span class="text-slate-500 font-medium">Publication Date</span>
+                    <span class="text-slate-900 font-bold">{{ book.published_date|default:"N/A" }}</span>
                 </div>
             </div>
         </div>
