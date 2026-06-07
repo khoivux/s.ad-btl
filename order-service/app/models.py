@@ -49,7 +49,7 @@ class Voucher(models.Model):
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2)
     is_percentage = models.BooleanField(default=False)
     min_spend = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    min_points_level_id = models.IntegerField(null=True, blank=True, help_text="MembershipLevel ID from customer-service")
+    min_points_level_id = models.IntegerField(null=True, blank=True, help_text="MembershipLevel ID from user-service")
     point_cost = models.IntegerField(default=0)
     max_quantity = models.IntegerField(default=100)
     redeemed_quantity = models.IntegerField(default=0)

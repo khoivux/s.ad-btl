@@ -13,7 +13,7 @@ from .ai_core.vector_db import vector_db
 from .ai_core.behavior_trainer import behavior_trainer
 
 # Service URLs
-CUSTOMER_SERVICE_URL = "http://customer-service:8000"
+CUSTOMER_SERVICE_URL = "http://user-service:8000"
 CATALOG_SERVICE_URL = "http://catalog-service:8000"
 
 class RecommendationApiView(APIView):
@@ -51,16 +51,19 @@ class ConsultantChatView(APIView):
         if not user_message:
             return Response({'error': 'Message is required'}, status=400)
         
-        # 1. Fetch History from customer-service
+        # 1. Fetch History from interaction-service
         try:
-            hist_r = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/chat-messages/")
+            from django.conf import settings
+            # We assume INTERACTION_SERVICE_URL is available in settings or hardcoded for now
+            interaction_url = getattr(settings, 'INTERACTION_SERVICE_URL', 'http://interaction-service:8000')
+            hist_r = requests.get(f"{interaction_url}/chat-messages/{customer_id}/")
             chat_history = hist_r.json() if hist_r.status_code == 200 else []
         except Exception:
             chat_history = []
 
         # 2. Save User Message
         try:
-            requests.post(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/chat-messages/", json={
+            requests.post(f"{interaction_url}/chat-messages/{customer_id}/", json={
                 'role': 'user', 'content': user_message
             })
         except Exception:
@@ -78,7 +81,7 @@ class ConsultantChatView(APIView):
                 
                 # 4. Save COMPLETE AI Response after stream ends
                 print(f"[STREAM COMPLETE] Saved response to DB")
-                requests.post(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/chat-messages/", json={
+                requests.post(f"{interaction_url}/chat-messages/{customer_id}/", json={
                     'role': 'assistant', 'content': full_advice
                 })
             except Exception as e:

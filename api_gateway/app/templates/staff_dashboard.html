@@ -96,9 +96,14 @@
                                 <label class="block text-slate-400 font-bold text-xs uppercase tracking-wider">Description</label>
                                 <textarea name="description" rows="2" class="w-full px-5 py-4 rounded-2xl bg-slate-700 border-2 border-slate-600 text-white focus:border-amber-500 outline-none"></textarea>
                             </div>
-                            <div class="space-y-2 lg:col-span-3">
-                                <label class="block text-slate-400 font-bold text-xs uppercase tracking-wider">Spec Attributes (JSON)</label>
-                                <textarea name="attributes_json" rows="2" placeholder='{"brand": "Apple", "ram": "16GB"}' class="w-full px-5 py-4 rounded-2xl bg-slate-700 border-2 border-slate-600 text-white font-mono text-sm focus:border-amber-500 outline-none"></textarea>
+                            <!-- Dynamic Attributes Container -->
+                            <div class="space-y-4 lg:col-span-3 bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50">
+                                <label class="block text-amber-400 font-black text-sm uppercase tracking-wider">📌 Specific Attributes</label>
+                                <p class="text-xs text-slate-500 font-bold mb-4">Please select a category first to see specific fields.</p>
+                                <div id="dynamic-attributes-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <!-- Inputs will be generated here by JS -->
+                                </div>
+                                <input type="hidden" name="attributes_json" id="attributes_json" value="{}">
                             </div>
                         </div>
                         <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-10 py-4 rounded-2xl transition-all shadow-xl shadow-amber-500/20">🚀 Add Product</button>
@@ -151,8 +156,85 @@
             </div>
             
             <!-- (Other sections orders, vouchers, categories remain hidden/functional) -->
-            <div id="section-orders" class="hidden"><p class="p-10 text-center">Refer to original implementation for Orders/Vouchers/Categories.</p></div>
-            <div id="section-vouchers" class="hidden"></div>
+            <!-- SECTION: ORDERS -->
+            <div id="section-orders" class="hidden space-y-10">
+                <section class="bg-slate-800 rounded-3xl border border-slate-700 overflow-hidden shadow-xl">
+                    <div class="px-8 py-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+                        <h2 class="text-2xl font-heading font-bold text-blue-400">📦 Order Management</h2>
+                        <button onclick="fetchOrders()" class="bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">🔄 Refresh</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-slate-700/30 text-slate-500 text-[10px] uppercase font-black tracking-widest text-left">
+                                    <th class="px-8 py-5">Order ID</th>
+                                    <th class="px-8 py-5">Customer ID</th>
+                                    <th class="px-8 py-5">Total Amount</th>
+                                    <th class="px-8 py-5 text-center">Date</th>
+                                    <th class="px-8 py-5">Status / Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-tbody" class="divide-y divide-slate-700/50">
+                                <!-- JS injected -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+            <div id="section-vouchers" class="hidden space-y-10">
+                <section class="bg-slate-800 rounded-3xl p-8 border border-slate-700 shadow-xl">
+                    <h2 class="text-2xl font-heading font-bold text-indigo-400 mb-6 flex items-center gap-3"><span class="bg-indigo-400/20 p-2 rounded-xl">🎟️</span> Create Voucher</h2>
+                    <form id="create-voucher-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="space-y-2">
+                            <label class="block text-slate-400 font-bold text-xs uppercase">Voucher Code *</label>
+                            <input type="text" id="v_code" required class="w-full px-5 py-4 rounded-2xl bg-slate-700 border-2 border-slate-600 focus:border-indigo-500 outline-none">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-slate-400 font-bold text-xs uppercase">Discount Type *</label>
+                            <select id="v_type" class="w-full px-5 py-4 rounded-2xl bg-slate-700 border-2 border-slate-600 focus:border-indigo-500 outline-none">
+                                <option value="percent">Percentage (%)</option>
+                                <option value="amount">Fixed Amount ($)</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-slate-400 font-bold text-xs uppercase">Discount Value *</label>
+                            <input type="number" id="v_value" required class="w-full px-5 py-4 rounded-2xl bg-slate-700 border-2 border-slate-600 focus:border-indigo-500 outline-none">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-slate-400 font-bold text-xs uppercase">Points Required</label>
+                            <input type="number" id="v_points" value="0" class="w-full px-5 py-4 rounded-2xl bg-slate-700 border-2 border-slate-600 focus:border-indigo-500 outline-none">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-slate-400 font-bold text-xs uppercase">Max Quantity</label>
+                            <input type="number" id="v_qty" value="100" class="w-full px-5 py-4 rounded-2xl bg-slate-700 border-2 border-slate-600 focus:border-indigo-500 outline-none">
+                        </div>
+                        <div class="space-y-2 flex items-end">
+                            <button type="button" onclick="createVoucher()" class="w-full bg-indigo-500 hover:bg-indigo-400 text-slate-900 font-black px-10 py-4 rounded-2xl transition-all shadow-xl shadow-indigo-500/20">Create Voucher</button>
+                        </div>
+                    </form>
+                </section>
+                <section class="bg-slate-800 rounded-3xl border border-slate-700 overflow-hidden shadow-xl">
+                    <div class="px-8 py-6 border-b border-slate-700">
+                        <h2 class="text-2xl font-heading font-bold">🎟️ Active Vouchers</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-slate-700/30 text-slate-500 text-[10px] uppercase font-black tracking-widest text-left">
+                                    <th class="px-8 py-5">Code</th>
+                                    <th class="px-8 py-5">Discount</th>
+                                    <th class="px-8 py-5">Points Reqd</th>
+                                    <th class="px-8 py-5 text-center">Usage</th>
+                                    <th class="px-8 py-5 text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vouchers-tbody" class="divide-y divide-slate-700/50">
+                                <!-- JS injected -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
             <div id="section-categories" class="hidden"></div>
         </div>
     </main>
@@ -170,12 +252,160 @@
             const activeNav = document.getElementById('nav-' + section);
             activeNav.className = `w-full flex items-center gap-3 px-6 py-4 rounded-2xl bg-${color}-500 text-slate-900 font-black shadow-lg transition-all border-2 border-transparent`;
             if (section === 'orders') fetchOrders();
+            if (section === 'vouchers') fetchVouchers();
         }
 
         async function deleteProduct(id) {
             if (!confirm('Delete this product?')) return;
             const res = await fetch(`/staff/products/${id}/delete/`, { method: 'DELETE', headers: { 'X-CSRFToken': '{{ csrf_token }}' } });
             if (res.ok) window.location.reload();
+        }
+
+        // --- DYNAMIC ATTRIBUTES LOGIC ---
+        const categorySchemas = {
+            'Book': ['Author', 'Publisher', 'Pages', 'Language', 'Format'],
+            'Laptop': ['Brand', 'CPU', 'RAM', 'Storage', 'Screen Size', 'OS'],
+            'Mobile': ['Brand', 'OS', 'Battery', 'Camera', 'Screen Size'],
+            'Shoes': ['Brand', 'Size', 'Color', 'Material', 'Gender'],
+            'Fashion': ['Brand', 'Size', 'Color', 'Material', 'Gender'],
+            'Watch': ['Brand', 'Type', 'Material', 'Water Resistant'],
+            'Cosmetics': ['Brand', 'Skin Type', 'Volume', 'Ingredients'],
+            'Toys': ['Brand', 'Age Group', 'Material'],
+            'Furniture': ['Brand', 'Material', 'Dimensions', 'Color'],
+            'Home Appliances': ['Brand', 'Power', 'Warranty'],
+            'Food': ['Brand', 'Expiry Date', 'Weight']
+        };
+
+        const categorySelect = document.querySelector('select[name="category"]');
+        const dynamicContainer = document.getElementById('dynamic-attributes-container');
+        const attributesJsonInput = document.getElementById('attributes_json');
+
+        categorySelect.addEventListener('change', (e) => {
+            dynamicContainer.innerHTML = '';
+            const catText = e.target.options[e.target.selectedIndex].text;
+            const schema = categorySchemas[catText] || ['Brand', 'Model', 'Color', 'Material'];
+            
+            schema.forEach(attr => {
+                const div = document.createElement('div');
+                div.className = "space-y-2";
+                div.innerHTML = `
+                    <label class="block text-slate-400 font-bold text-xs uppercase">${attr}</label>
+                    <input type="text" data-attr="${attr.toLowerCase().replace(' ', '_')}" class="dynamic-attr w-full px-4 py-3 rounded-xl bg-slate-700 border border-slate-600 focus:border-amber-500 outline-none text-sm">
+                `;
+                dynamicContainer.appendChild(div);
+            });
+
+            // Update JSON when inputs change
+            document.querySelectorAll('.dynamic-attr').forEach(input => {
+                input.addEventListener('input', updateAttributesJson);
+            });
+            updateAttributesJson(); // initial clear
+        });
+
+        function updateAttributesJson() {
+            const obj = {};
+            document.querySelectorAll('.dynamic-attr').forEach(input => {
+                if(input.value.trim() !== '') obj[input.dataset.attr] = input.value.trim();
+            });
+            attributesJsonInput.value = JSON.stringify(obj);
+        }
+
+        // --- VOUCHERS LOGIC ---
+        async function fetchVouchers() {
+            try {
+                const res = await fetch('/api/staff/vouchers/');
+                const data = await res.json();
+                const tbody = document.getElementById('vouchers-tbody');
+                tbody.innerHTML = data.map(v => `
+                    <tr class="hover:bg-slate-700/20">
+                        <td class="px-8 py-5 font-black text-indigo-400">${v.code}</td>
+                        <td class="px-8 py-5 font-bold">${v.is_percentage ? v.discount_amount+'%' : '$'+v.discount_amount}</td>
+                        <td class="px-8 py-5"><span class="bg-amber-500/20 text-amber-500 px-3 py-1 rounded-full text-xs font-black">${v.point_cost} pts</span></td>
+                        <td class="px-8 py-5 text-center text-sm">${v.redeemed_quantity} / ${v.max_quantity}</td>
+                        <td class="px-8 py-5 text-right">
+                            <span class="${v.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'} px-3 py-1 rounded-full text-xs font-bold">
+                                ${v.is_active ? 'ACTIVE' : 'INACTIVE'}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        async function createVoucher() {
+            const isPercent = document.getElementById('v_type').value === 'percent';
+            const val = parseFloat(document.getElementById('v_value').value);
+            const payload = {
+                code: document.getElementById('v_code').value.toUpperCase(),
+                discount_amount: val,
+                is_percentage: isPercent,
+                point_cost: parseInt(document.getElementById('v_points').value || 0),
+                max_quantity: parseInt(document.getElementById('v_qty').value || 100),
+                is_active: true,
+                min_spend: 0
+            };
+            const res = await fetch('/api/staff/vouchers/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if(res.ok) {
+                alert('Voucher Created!');
+                fetchVouchers();
+                document.getElementById('create-voucher-form').reset();
+            } else {
+                alert('Error creating voucher');
+            }
+        }
+
+        // --- ORDERS LOGIC ---
+        async function fetchOrders() {
+            try {
+                const res = await fetch('/api/staff/orders/');
+                const data = await res.json();
+                const orders = data.results || data; // handle paginated or unpaginated
+                const tbody = document.getElementById('orders-tbody');
+                
+                const statusOptions = [
+                    'pending', 'pending_confirmation', 'processing', 
+                    'ready_for_pickup', 'delivering', 'completed', 'cancelled'
+                ];
+
+                tbody.innerHTML = orders.map(o => {
+                    const date = new Date(o.created_at).toLocaleDateString();
+                    
+                    let selectHtml = `<select onchange="updateOrderStatus(${o.id}, this.value)" class="bg-slate-700 text-xs font-bold px-3 py-2 rounded-lg border border-slate-600 outline-none focus:border-blue-500">`;
+                    statusOptions.forEach(s => {
+                        selectHtml += `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s.toUpperCase().replace(/_/g, ' ')}</option>`;
+                    });
+                    selectHtml += `</select>`;
+
+                    return `
+                    <tr class="hover:bg-slate-700/20">
+                        <td class="px-8 py-5 font-black text-blue-400">#${o.id}</td>
+                        <td class="px-8 py-5 font-bold">User ${o.customer_id}</td>
+                        <td class="px-8 py-5 font-black text-amber-500">$${o.total_amount}</td>
+                        <td class="px-8 py-5 text-center text-sm text-slate-400">${date}</td>
+                        <td class="px-8 py-5">
+                            <div class="flex items-center gap-3">
+                                ${selectHtml}
+                            </div>
+                        </td>
+                    </tr>
+                `}).join('');
+            } catch(e) { console.error(e); }
+        }
+
+        async function updateOrderStatus(id, newStatus) {
+            const res = await fetch(`/api/staff/orders/${id}/`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                body: JSON.stringify({status: newStatus})
+            });
+            if(!res.ok) {
+                alert('Failed to update order status');
+                fetchOrders(); // revert
+            }
         }
     </script>
 </body>

@@ -4,14 +4,14 @@ import time
 
 INTERACTION_SERVICE_URL = "http://interaction-service:8000"
 PRODUCT_SERVICE_URL = "http://product-service:8000"
-CUSTOMER_SERVICE_URL = "http://customer-service:8000"
+CUSTOMER_SERVICE_URL = "http://user-service:8000"
 
 ACTIONS = ["view_product", "search", "add_to_cart"]
 
 def seed():
     print("=== Fetching customers and products ===")
     try:
-        cust_r = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/", timeout=5)
+        cust_r = requests.get(f"{CUSTOMER_SERVICE_URL}/users/", timeout=5)
         customers = cust_r.json()
         
         prod_r = requests.get(f"{PRODUCT_SERVICE_URL}/products/?page_size=100", timeout=5)
@@ -41,8 +41,8 @@ def seed():
             
             payload = {
                 "user_id": user_id,
-                "action": action,
-                "target_id": target_id
+                "action_type": action,
+                "product_id": target['id']
             }
             
             try:

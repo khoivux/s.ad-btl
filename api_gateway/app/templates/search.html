@@ -109,6 +109,12 @@
                         class="aspect-square w-full bg-slate-100 rounded-xl mb-4 overflow-hidden relative group-hover:opacity-90 transition-opacity">
                         <img src="{{ book.image_url }}" alt="{{ book.name }}"
                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        
+                        <!-- Wishlist heart -->
+                        <button onclick="event.preventDefault(); toggleWishlist({{ book.id }}, this)" 
+                                class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                            <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                        </button>
                         <div
                             class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
                             <button onclick="event.preventDefault(); addToCart({{ book.id }})"
@@ -178,6 +184,36 @@
                     setTimeout(() => { toast.classList.add('translate-y-10', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3000);
                 } else { alert('Error adding to cart'); }
             } catch (error) { console.error(error); }
+        }
+
+        async function toggleWishlist(productId, btn) {
+            try {
+                const res = await fetch(`/api/wishlist/toggle/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: productId, action: 'add' })
+                });
+                if (res.status === 401) { window.location.href = `/login/?next=/search/`; return; }
+                const data = await res.json();
+                if (res.ok) {
+                    if (data.status === 'added') {
+                        btn.classList.add('text-rose-500');
+                        btn.querySelector('svg').classList.add('fill-current');
+                        showToast('Added to wishlist!');
+                    } else {
+                        showToast('Already in wishlist');
+                    }
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl translate-y-10 opacity-0 transition-all duration-300 z-50 flex items-center gap-3 font-bold';
+            toast.innerHTML = `<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> ${msg}`;
+            document.body.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
+            setTimeout(() => { toast.classList.add('translate-y-10', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3000);
         }
     </script>
 </body>

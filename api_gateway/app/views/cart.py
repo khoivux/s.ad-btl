@@ -67,9 +67,10 @@ class AddCartItemView(BaseProxyView):
             if r.status_code in (200, 201):
                 try:
                     customer_id = request.session.get('customer_id')
+                    from django.conf import settings
                     requests.post(
-                        f"http://customer-service:8000/customers/{customer_id}/interaction-logs/",
-                        json={'book_id': payload['product_id'], 'action_type': 'ADD_TO_CART'},
+                        f"{settings.INTERACTION_SERVICE_URL}/logs/",
+                        json={'customer_id': customer_id, 'action_type': 'ADD_TO_CART', 'book_id': payload['product_id']},
                         timeout=2
                     )
                 except Exception:

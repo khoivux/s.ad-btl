@@ -2,31 +2,32 @@ version: '3.8'
 
 services:
   # --- CUSTOMER ---
-  customer-db:
+  # --- USER (Merged Customer & Staff) ---
+  user-db:
     image: mysql:8.0
     environment:
-      MYSQL_DATABASE: customer_db
+      MYSQL_DATABASE: user_db
       MYSQL_ROOT_PASSWORD: root
     ports:
       - "3307:3306"
     volumes:
-      - customer_data:/var/lib/mysql
+      - user_data:/var/lib/mysql
 
-  customer-service:
-    build: ./customer-service
+  user-service:
+    build: ./user-service
     ports:
       - "8001:8000"
     depends_on:
-      - customer-db
+      - user-db
     environment:
       - DATABASE_ENGINE=django.db.backends.mysql
-      - DATABASE_NAME=customer_db
+      - DATABASE_NAME=user_db
       - DATABASE_USER=root
       - DATABASE_PASSWORD=root
-      - DATABASE_HOST=customer-db
+      - DATABASE_HOST=user-db
       - DATABASE_PORT=3306
     volumes:
-      - ./customer-service:/app
+      - ./user-service:/app
 
   # --- PRODUCT ---
   product-db:
@@ -85,31 +86,6 @@ services:
       - ./cart-service:/app
 
   # --- STAFF ---
-  staff-db:
-    image: mysql:8.0
-    environment:
-      MYSQL_DATABASE: staff_db
-      MYSQL_ROOT_PASSWORD: root
-    ports:
-      - "3308:3306"
-    volumes:
-      - staff_data:/var/lib/mysql
-
-  staff-service:
-    build: ./staff-service
-    ports:
-      - "8004:8000"
-    depends_on:
-      - staff-db
-    environment:
-      - DATABASE_ENGINE=django.db.backends.mysql
-      - DATABASE_NAME=staff_db
-      - DATABASE_USER=root
-      - DATABASE_PASSWORD=root
-      - DATABASE_HOST=staff-db
-      - DATABASE_PORT=3306
-    volumes:
-      - ./staff-service:/app
 
   # --- ORDER ---
   order-db:
@@ -307,10 +283,9 @@ services:
       - ./api_gateway:/app
 
 volumes:
-  customer_data:
+  user_data:
   product_data:
   cart_data:
-  staff_data:
   order_data:
   pay_data:
   ship_data:

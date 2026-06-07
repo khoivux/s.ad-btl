@@ -11,6 +11,8 @@ class ProductEntity:
     attributes: Dict[str, Any] = field(default_factory=dict)
     id: Optional[int] = None
     stock: int = 0
+    product_type: str = "General"
+    domain_data: Dict[str, Any] = field(default_factory=dict)
 
     def validate(self):
         if self.price < 0:

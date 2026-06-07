@@ -4,7 +4,8 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
@@ -12,6 +13,7 @@ import os
 
 class UserBehaviorDataset(Dataset):
     def __init__(self, sequences, targets):
+        # Chuyển đổi dữ liệu sang dạng Tensor để PyTorch có thể xử lý
         self.sequences = torch.tensor(sequences, dtype=torch.long)
         self.targets = torch.tensor(targets, dtype=torch.long)
         
@@ -21,12 +23,18 @@ class UserBehaviorDataset(Dataset):
     def __getitem__(self, idx):
         return self.sequences[idx], self.targets[idx]
 
+
 def prepare_data(csv_path, seq_length=10):
+    """
+    Chuẩn bị dữ liệu từ file CSV, tạo các chuỗi hành vi của người dùng
+    """
     df = pd.read_csv(csv_path)
     
+    # Xác định số lượng sản phẩm lớn nhất để thiết kế lớp Embedding
     max_prod = int(df['product_id'].max()) + 1
-    df['product_id'] = df['product_id'].astype(int) - 1
+    df['product_id'] = df['product_id'].astype(int) - 1 # Chuyển về 0-indexed
     
+    # Ánh xạ các hành động sang giá trị số nguyên
     action_map = {
         'view': 1, 'click': 2, 'add_to_cart': 3, 'remove_from_cart': 4, 
         'purchase': 5, 'wishlist': 6, 'review': 7, 'share': 8
@@ -36,28 +44,35 @@ def prepare_data(csv_path, seq_length=10):
     sequences = []
     targets = []
     
+    # Nhóm dữ liệu theo người dùng để tạo chuỗi thời gian
     for user_id, group in df.groupby('user_id'):
         user_prods = group['product_id'].values
         user_actions = group['action'].values
         
         if len(user_prods) <= seq_length: continue
         
+        # Kỹ thuật cửa sổ trượt (Sliding Window) để tạo mẫu huấn luyện
         for i in range(len(user_prods) - seq_length):
             seq_p = user_prods[i:i+seq_length]
             seq_a = user_actions[i:i+seq_length]
             seq = np.stack([seq_p, seq_a], axis=1) # shape: (seq_length, 2)
-            target = user_prods[i+seq_length]
+            target = user_prods[i+seq_length]      # Mục tiêu là sản phẩm tiếp theo
             
             sequences.append(seq)
             targets.append(target)
             
     return np.array(sequences), np.array(targets), max_prod, len(action_map) + 1
 
+
 class SequenceRecommender(nn.Module):
+    """
+    Kiến trúc mô hình hợp nhất cho RNN, LSTM và biLSTM
+    """
     def __init__(self, num_products, num_actions, model_type='LSTM', hidden_dim=128, num_layers=2):
         super(SequenceRecommender, self).__init__()
         self.model_type = model_type
         
+        # Lớp Embedding để chuyển đổi ID thành không gian vector mật độ cao
         self.prod_emb = nn.Embedding(num_products + 1, 64)
         self.act_emb = nn.Embedding(num_actions, 16)
         
@@ -71,6 +86,7 @@ class SequenceRecommender(nn.Module):
             'dropout': 0.2 if num_layers > 1 else 0
         }
         
+        # Lựa chọn lõi mạng theo tham số truyền vào
         if model_type == 'RNN':
             self.rnn = nn.RNN(**rnn_kwargs)
         elif model_type == 'LSTM':
@@ -80,6 +96,7 @@ class SequenceRecommender(nn.Module):
             self.rnn = nn.LSTM(**rnn_kwargs)
             
         rnn_out_dim = hidden_dim * 2 if self.is_bidirectional else hidden_dim
+        # Lớp phân loại cuối cùng để đưa ra dự đoán sản phẩm
         self.fc = nn.Sequential(
             nn.Linear(rnn_out_dim, 256),
             nn.ReLU(),
@@ -91,15 +108,19 @@ class SequenceRecommender(nn.Module):
         p_seq = x[:, :, 0]
         a_seq = x[:, :, 1]
         
+        # Chuyển đổi dữ liệu đầu vào qua lớp Embedding
         p_emb = self.prod_emb(p_seq)
         a_emb = self.act_emb(a_seq)
         
         rnn_in = torch.cat([p_emb, a_emb], dim=-1)
         
+        # Xử lý qua mạng hồi quy
         out, _ = self.rnn(rnn_in)
+        # Lấy trạng thái ẩn cuối cùng của chuỗi làm đại diện thông tin
         last_out = out[:, -1, :]
         logits = self.fc(last_out)
         return logits
+
 
 def evaluate_model(model, iter_val, criterion, device="cpu"):
     model.eval()
@@ -125,38 +146,42 @@ def evaluate_model(model, iter_val, criterion, device="cpu"):
     return avg_loss, acc, prec, rec, f1
 
 def train_and_evaluate():
+    # Xác định đường dẫn file dữ liệu (hỗ trợ nhiều môi trường chạy)
     data_path = '../../data_user500.csv'
     if not os.path.exists(data_path):
-        data_path = 'data_user500.csv'  # depending on execution cwd
+        data_path = 'data_user500.csv' 
         if not os.path.exists(data_path):
-            data_path = "c:/bookstore-micro05/recommender-ai-service/data_user500.csv"
+             data_path = "c:/bookstore-micro05/recommender-ai-service/data_user500.csv"
             
-    print("[INFO] Preparing Data...")
+    print("[INFO] Đang chuẩn bị dữ liệu...")
     X, y, num_products, num_actions = prepare_data(data_path, seq_length=10)
-    print(f"Data shape: Sequences: {X.shape}, Targets: {y.shape}")
+    print(f"Kích thước dữ liệu: Chuỗi: {X.shape}, Mục tiêu: {y.shape}")
     
     if len(X) == 0:
-        print("ERROR: No data sequences. Adjust seq_length")
+        print("LỖI: Không tìm thấy chuỗi dữ liệu. Kiểm tra lại seq_length.")
         return
 
+    # Chia dữ liệu thành 3 tập: Train (70%), Val (15%), Test (15%)
     X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.3, random_state=42)
     X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
     
     train_loader = DataLoader(UserBehaviorDataset(X_train, y_train), batch_size=256, shuffle=True)
     val_loader = DataLoader(UserBehaviorDataset(X_val, y_val), batch_size=256, shuffle=False)
     test_loader = DataLoader(UserBehaviorDataset(X_test, y_test), batch_size=256, shuffle=False)
+
     
     model_types = ['RNN', 'LSTM', 'biLSTM']
     results = {}
-    epochs = 5
+    epochs = 20
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     best_model_name = ""
     best_acc = 0
     
+    # Vòng lặp huấn luyện cho từng loại mô hình
     for mt in model_types:
-        print(f"\\n[TRAINING] Starting to train {mt} model...")
+        print(f"\n[TRAINING] Bắt đầu huấn luyện mô hình {mt}...")
         model = SequenceRecommender(num_products, num_actions, model_type=mt).to(device)
         optimizer = optim.Adam(model.parameters(), lr=0.005)
         criterion = nn.CrossEntropyLoss()
@@ -181,6 +206,7 @@ def train_and_evaluate():
             train_losses.append(train_loss)
             val_losses.append(v_loss)
             print(f"  > {mt} Epoch {epoch+1}/{epochs} - Train Loss: {train_loss:.4f} - Val Loss: {v_loss:.4f} - Val Acc: {v_acc:.4f}")
+
             
         t_loss, t_acc, t_prec, t_rec, t_f1 = evaluate_model(model, test_loader, criterion, device)
         print(f"[RESULT] {mt} Test Set Evaluation -> Acc: {t_acc:.4f}, Prec: {t_prec:.4f}, Rec: {t_rec:.4f}, F1: {t_f1:.4f}")
@@ -204,17 +230,18 @@ def train_and_evaluate():
             
     print(f"\\n[CONCLUSION] Best Model Selected: {best_model_name} with Accuracy {best_acc:.4f}")
     
-    # plt.figure(figsize=(10,6))
-    # for mt in model_types:
-    #     plt.plot(range(1, epochs+1), results[mt]['val_losses'], label=f'{mt} (Final Val Loss: {results[mt]["val_losses"][-1]:.4f})')
+    plt.figure(figsize=(10,6))
+    for mt in model_types:
+        plt.plot(range(1, epochs+1), results[mt]['val_losses'], label=f'{mt} (Final Val Loss: {results[mt]["val_losses"][-1]:.4f})')
         
-    # plt.title('Validation Loss Comparison (RNN vs LSTM vs biLSTM)')
-    # plt.xlabel('Epochs')
-    # plt.ylabel('Loss (Cross Entropy)')
-    # plt.legend()
-    # plt.grid()
-    # plt.savefig('metrics_loss_plot.png')
-    # print("Metrics plot saved to 'metrics_loss_plot.png'.")
+    plt.title('Validation Loss Comparison (RNN vs LSTM vs biLSTM)')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss (Cross Entropy)')
+    plt.legend()
+    plt.grid()
+    plt.savefig('metrics_loss_plot.png')
+    print("Metrics plot saved to 'metrics_loss_plot.png'.")
+
 
     
     with open('model_evaluation.txt', 'w', encoding='utf-8') as f:

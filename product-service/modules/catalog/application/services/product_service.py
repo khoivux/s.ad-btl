@@ -13,7 +13,9 @@ class ProductService:
             stock=int(data.get('stock', 0)),
             image_url=data.get('image_url', ''),
             category_id=data.get('category_id'),
-            attributes=data.get('attributes', {})
+            attributes=data.get('attributes', {}),
+            product_type=data.get('product_type', 'General'),
+            domain_data=data.get('domain_data', {})
         )
         entity.validate()
         return self.repository.save(entity)

@@ -41,6 +41,8 @@ class ProductSyncView(APIView):
             'category_id': data.get('category_id'),
             'category_name': data.get('category_name', ''),
             'attributes': data.get('attributes', {}),
+            'product_type': data.get('product_type', 'General'),
+            'domain_data': data.get('domain_data', {}),
         }
 
         products_collection.replace_one({'_id': product_id}, doc, upsert=True)

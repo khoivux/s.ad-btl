@@ -13,7 +13,7 @@ CART_SERVICE_URL = "http://cart-service:8000"
 PRODUCT_SERVICE_URL = "http://product-service:8000"
 PAY_SERVICE_URL  = "http://pay-service:8000"
 SHIP_SERVICE_URL = "http://ship-service:8000"
-CUSTOMER_SERVICE_URL = "http://customer-service:8000"
+CUSTOMER_SERVICE_URL = "http://user-service:8000"
 
 def _log(tag, r):
     print(f"[order-service][{tag}] {r.request.method} {r.url} → {r.status_code}")
@@ -80,7 +80,7 @@ class OrderListCreate(APIView):
         wallet = None
         
         try:
-            cust_resp = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/")
+            cust_resp = requests.get(f"{CUSTOMER_SERVICE_URL}/users/{customer_id}/")
             if cust_resp.status_code == 200:
                 customer_data = cust_resp.json()
                 wallet = customer_data.get('wallet')
@@ -342,7 +342,7 @@ class OrderStatusUpdate(APIView):
             # If completed -> Add points to customer
             if new_status == 'completed':
                 try:
-                    requests.post(f"{CUSTOMER_SERVICE_URL}/customers/{order.customer_id}/wallet/add-points/", json={
+                    requests.post(f"{CUSTOMER_SERVICE_URL}/users/{order.customer_id}/wallet/add-points/", json={
                         'amount': order.points_generated,
                         'description': f"Reward for order #{order.id}"
                     })
@@ -500,7 +500,7 @@ class RedeemVoucher(APIView):
             
             # Fetch customer wallet/level from customer-service
             try:
-                cust_r = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/")
+                cust_r = requests.get(f"{CUSTOMER_SERVICE_URL}/users/{customer_id}/")
                 if cust_r.status_code != 200:
                     return Response({'error': 'Could not verify customer profile.'}, status=400)
                 customer_data = cust_r.json()
@@ -524,7 +524,7 @@ class RedeemVoucher(APIView):
                     'transaction_type': 'SPEND',
                     'description': f'Exchanged points for voucher {voucher.code}'
                 }
-                spend_r = requests.post(f"{CUSTOMER_SERVICE_URL}/customers/{customer_id}/wallet/add-points/", json=spend_payload)
+                spend_r = requests.post(f"{CUSTOMER_SERVICE_URL}/users/{customer_id}/wallet/add-points/", json=spend_payload)
                 if spend_r.status_code != 200:
                     return Response({'error': 'Failed to deduct points.'}, status=400)
             

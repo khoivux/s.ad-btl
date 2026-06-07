@@ -21,7 +21,7 @@ class ConsultantAgent:
         points, level_id = 0, 1
         try:
             import requests
-            cust_r = requests.get(f"http://customer-service:8000/customers/{user_id}/", timeout=5)
+            cust_r = requests.get(f"http://user-service:8000/users/{user_id}/", timeout=5)
             if cust_r.status_code == 200:
                 c_data = cust_r.json()
                 wallet = c_data.get('wallet', {})
@@ -42,11 +42,21 @@ class ConsultantAgent:
             
             recom_context = ""
             if ai_recs:
+                def format_domain(r):
+                    dtype = r.get('product_type', 'General')
+                    ddata = r.get('domain_data', {})
+                    if not ddata: return ""
+                    
+                    details = []
+                    for k, v in ddata.items():
+                        details.append(f"{k.replace('_', ' ').capitalize()}: {v}")
+                    return f" [{dtype} - {', '.join(details)}]"
+
                 recom_context = "\n".join([
-                    f"- {r['title']} (Match: {r['score']}đ)\n  MÔ TẢ: {r['description'][:200]}..." 
+                    f"- {r['title']}{format_domain(r)} (Match: {r['score']}đ)\n  MÔ TẢ: {r['description'][:200]}..." 
                     for r in ai_recs
                 ])
-                print(f"[AI-LOG] AI LSTM Pool of products ready.")
+                print(f"[AI-LOG] AI LSTM Pool of products ready with domain details.")
             
             # --- KNOWLEDGE GRAPH TRIPLETS ---
             graph_triples = neo4j_db.get_direct_interactions_context(user_id)

@@ -6,12 +6,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .base import BaseProxyView, StaffRequiredMixin
 
-STAFF_SERVICE_URL = "http://staff-service:8000"
+USER_SERVICE_URL = "http://user-service:8000"
 PRODUCT_SERVICE_URL = "http://product-service:8000"
 ORDER_SERVICE_URL = "http://order-service:8000"
 
 class StaffLoginView(BaseProxyView):
-    service_url = STAFF_SERVICE_URL
+    service_url = USER_SERVICE_URL
 
     def get(self, request):
         return render(request, "staff_login.html")
@@ -21,12 +21,14 @@ class StaffLoginView(BaseProxyView):
         password = request.POST.get('password')
         payload = {"username": username, "password": password}
         
-        r = self.proxy_request(request, "staff/login/", method="POST", payload=payload)
+        r = self.proxy_request(request, "users/login/", method="POST", payload=payload)
         
         if r and r.status_code == 200:
             data = r.json()
             request.session['staff_id'] = data['id']
             request.session['staff_name'] = data['username']
+            request.session['jwt_access'] = data['access']
+            request.session['jwt_refresh'] = data['refresh']
             return redirect('staff_dashboard')
         elif r:
             return render(request, "staff_login.html", {"error": "Invalid credentials"})

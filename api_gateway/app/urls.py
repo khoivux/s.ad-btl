@@ -1,5 +1,5 @@
 from django.urls import path
-from app.views.products import ProductListView, ProductSearchView, ProductDetailView, ProductReviewSubmitView
+from app.views.products import ProductListView, ProductSearchView, ProductDetailView, ProductReviewSubmitView, WishlistPageView, WishlistToggleView
 from app.views.customer import LoginView, RegisterView, LogoutView, ProfileView, ProfileApiView, AddressApiListView, AddressApiDetailView, PointTransactionApiView, ChatHistoryApiView, ChatConsultantApiView, RecommenderProxyView
 from app.views.orders import CheckoutPageView, CheckoutApiView, OrderHistoryView, OrderSuccessView, OrderDetailView, OrderTrackingView, OrderActionApiView, OrderDetailApiView
 from app.views.cart import CartView, AddCartItemView, ModifyCartItemView
@@ -13,6 +13,8 @@ urlpatterns = [
     path('products/', ProductListView.as_view(), name='product_list'),
     path('products/<int:product_id>/', ProductDetailView.as_view(), name='product_detail'),
     path('api/products/<int:product_id>/reviews/', ProductReviewSubmitView.as_view(), name='product_review_submit'),
+    path('wishlist/', WishlistPageView.as_view(), name='wishlist'),
+    path('api/wishlist/toggle/', WishlistToggleView.as_view(), name='wishlist_toggle'),
     path('search/', ProductSearchView.as_view(), name='search'),
 
     # Legacy book routes (backward compat aliases)

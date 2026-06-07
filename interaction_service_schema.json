@@ -1,0 +1,44 @@
+{
+  "database": "interaction_db",
+  "type": "MongoDB (NoSQL)",
+  "collections": {
+    "logs": {
+      "description": "Stores user interaction events such as viewing products, clicking links, or adding items to cart.",
+      "schema": {
+        "_id": "ObjectId",
+        "user_id": "Integer (Required: ID of the user performing the action)",
+        "action": "String (Required: Type of action, e.g., 'view_product', 'add_to_cart', 'purchase')",
+        "product_id": "Integer (Optional: ID of the product interacted with)",
+        "timestamp": "Datetime (UTC: Time when the action occurred)"
+      }
+    },
+    "search_history": {
+      "description": "Stores the search queries made by users to improve recommendations and track trends.",
+      "schema": {
+        "_id": "ObjectId",
+        "user_id": "Integer (Required: ID of the searching user)",
+        "query": "String (Required: The text searched by the user)",
+        "timestamp": "Datetime (UTC: Time of the search)"
+      }
+    },
+    "chat_messages": {
+      "description": "Stores conversation history between the user and the AI Recommender chatbot.",
+      "schema": {
+        "_id": "ObjectId",
+        "user_id": "Integer (Required: ID of the user in the chat)",
+        "role": "String (Required: 'user' or 'assistant' based on who sent the message)",
+        "content": "String (Required: The actual message content)",
+        "timestamp": "Datetime (UTC: Time the message was sent)"
+      }
+    },
+    "wishlist": {
+      "description": "Stores products that a user has saved for later (Wishlist/Favorites).",
+      "schema": {
+        "_id": "ObjectId",
+        "user_id": "Integer (Required: ID of the user)",
+        "product_id": "Integer (Required: ID of the saved product)",
+        "added_at": "Datetime (UTC: Time when the product was added to wishlist)"
+      }
+    }
+  }
+}

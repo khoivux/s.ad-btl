@@ -70,6 +70,13 @@
                     <button class="flex-1 bg-indigo-600 text-white font-bold py-4 px-8 rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-1">
                         ⚡ Buy Now
                     </button>
+                    <button onclick="toggleWishlist({{ product.id }})"
+                            class="p-4 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center group"
+                            title="Add to Wishlist">
+                        <svg id="wishlist-icon" class="w-6 h-6 fill-none stroke-current group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
@@ -88,20 +95,37 @@
             </div>
         </div>
 
-        <!-- Dynamic Attributes (JSONB) -->
-        {% if product.attributes %}
+        <!-- Dynamic Attributes (Domain Data & Legacy JSONB) -->
+        {% if product.domain_data or product.attributes %}
         <div class="bg-white rounded-3xl p-8 md:p-10 border border-slate-200 shadow-sm">
             <h2 class="text-xl font-black text-slate-900 font-heading mb-6 flex items-center gap-2">
                 <span class="w-8 h-8 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center text-sm">📋</span>
                 Specifications
+                {% if product.product_type and product.product_type != "General" %}
+                <span class="text-sm bg-slate-100 text-slate-500 px-2 py-0.5 rounded ml-auto">{{ product.product_type }}</span>
+                {% endif %}
             </h2>
             <div class="space-y-3">
-                {% for key, value in product.attributes.items %}
-                <div class="flex justify-between py-2 border-b border-slate-50 last:border-0">
-                    <span class="text-slate-500 font-medium capitalize">{{ key|title|cut:"_" }}</span>
-                    <span class="text-slate-900 font-bold text-right max-w-xs">{{ value }}</span>
-                </div>
-                {% endfor %}
+                <!-- Domain Specific Details -->
+                {% if product.domain_data %}
+                    {% for key, value in product.domain_data.items %}
+                    <div class="flex justify-between py-2 border-b border-slate-50 last:border-0">
+                        <span class="text-slate-500 font-medium capitalize">{{ key|title|cut:"_" }}</span>
+                        <span class="text-slate-900 font-bold text-right max-w-xs">{{ value }}</span>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                
+                <!-- Legacy Attributes -->
+                {% if product.attributes %}
+                    {% if product.domain_data %}<div class="pt-4 border-t border-slate-100 mt-4 opacity-50 text-[10px] uppercase font-bold text-slate-400">Other Attributes</div>{% endif %}
+                    {% for key, value in product.attributes.items %}
+                    <div class="flex justify-between py-2 border-b border-slate-50 last:border-0">
+                        <span class="text-slate-500 font-medium capitalize">{{ key|title|cut:"_" }}</span>
+                        <span class="text-slate-900 font-bold text-right max-w-xs">{{ value }}</span>
+                    </div>
+                    {% endfor %}
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -228,6 +252,39 @@
             if (res.ok) { window.location.reload(); }
             else { const d = await res.json(); alert(d.error || "Failed to submit review"); }
         } catch (err) { alert("Error submitting review"); }
+    }
+
+    async function toggleWishlist(productId) {
+        try {
+            const res = await fetch(`/api/wishlist/toggle/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, action: 'add' })
+            });
+            if (res.status === 401) { window.location.href = `/login/?next=/products/${productId}/`; return; }
+            const data = await res.json();
+            if (res.ok) {
+                const icon = document.getElementById('wishlist-icon');
+                if (data.status === 'added') {
+                    icon.classList.add('fill-current');
+                    showToast('Added to wishlist!');
+                } else if (data.status === 'already_in_wishlist') {
+                    showToast('Item already in wishlist');
+                }
+            }
+        } catch (err) { console.error(err); }
+    }
+
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-2xl translate-y-10 opacity-0 transition-all duration-500 z-50 flex items-center gap-3 font-bold border border-slate-700';
+        toast.innerHTML = `<div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"><svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div> ${msg}`;
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
+        setTimeout(() => {
+            toast.classList.add('translate-y-10', 'opacity-0');
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
     }
 </script>
 </body>

@@ -1,0 +1,569 @@
+
+--- C:/bookstore-micro05\api_gateway\app\models.py ---
+from django.db import models
+
+# Create your models here.
+
+--- C:/bookstore-micro05\cart-service\app\models.py ---
+from django.db import models
+
+class Cart(models.Model):
+    customer_id = models.IntegerField()
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
+    product_id = models.IntegerField()
+    quantity = models.IntegerField()
+
+--- C:/bookstore-micro05\catalog-service\app\models.py ---
+from django.db import models
+
+class Review(models.Model):
+    customer_id = models.IntegerField()
+    book_id = models.IntegerField()
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
+    comment = models.TextField(blank=True, default='')
+    customer_name = models.CharField(max_length=255, blank=True, default='User')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('customer_id', 'book_id')
+        indexes = [
+            models.Index(fields=['book_id']),
+            models.Index(fields=['customer_id']),
+        ]
+
+    def __str__(self):
+        return f"Review by {self.customer_id} for book {self.book_id} - Rating: {self.rating}"
+
+--- C:/bookstore-micro05\comment-rate-service\app\models.py ---
+from django.db import models
+
+class Review(models.Model):
+    customer_id = models.IntegerField()
+    product_id = models.IntegerField()
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
+    comment = models.TextField(blank=True, default='')
+    customer_name = models.CharField(max_length=255, blank=True, default='User')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('customer_id', 'product_id')
+        indexes = [
+            models.Index(fields=['product_id']),
+            models.Index(fields=['customer_id']),
+        ]
+
+    def __str__(self):
+        return f"Review by {self.customer_id} for product {self.product_id} - Rating: {self.rating}"
+
+--- C:/bookstore-micro05\order-service\app\models.py ---
+from django.db import models
+
+class Order(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('pending_confirmation', 'Pending Confirmation'),
+        ('processing', 'Processing'),
+        ('ready_for_pickup', 'Ready for Pickup'),
+        ('delivering', 'Delivering'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled')
+    ]
+    customer_id = models.IntegerField()
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Loyalty & Discounts
+    membership_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    voucher_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    voucher_code = models.CharField(max_length=100, blank=True, default='')
+    points_generated = models.IntegerField(default=0)
+    
+    shipping_address = models.TextField(blank=True, default='')
+    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    shipping_method = models.CharField(max_length=50, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Order #{self.id} - {self.customer_id} - {self.status}"
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product_id = models.IntegerField()
+    product_name = models.CharField(max_length=255, default='')  # Snapshot
+    item_image_url = models.TextField(blank=True, default='')   # Snapshot
+    quantity = models.IntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)  # Snapshot price
+
+    @property
+    def subtotal(self):
+        return self.quantity * self.unit_price
+
+    def __str__(self):
+        return f"OrderItem #{self.id} - Product {self.product_id} x{self.quantity}"
+
+class Voucher(models.Model):
+    code = models.CharField(max_length=100, unique=True)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    is_percentage = models.BooleanField(default=False)
+    min_spend = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    min_points_level_id = models.IntegerField(null=True, blank=True, help_text="MembershipLevel ID from user-service")
+    point_cost = models.IntegerField(default=0)
+    max_quantity = models.IntegerField(default=100)
+    redeemed_quantity = models.IntegerField(default=0)
+    is_public = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    expiry_date = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.code} ({self.redeemed_quantity}/{self.max_quantity})"
+
+class CustomerVoucher(models.Model):
+    customer_id = models.IntegerField()
+    voucher = models.ForeignKey(Voucher, on_delete=models.CASCADE, related_name='customer_vouchers')
+    is_used = models.BooleanField(default=False)
+    redeemed_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    order_id = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Customer {self.customer_id} - {self.voucher.code} (Used: {self.is_used})"
+
+class OrderStatusLog(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='status_logs')
+    status = models.CharField(max_length=50)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Order #{self.order.id} -> {self.status} at {self.created_at}"
+
+--- C:/bookstore-micro05\pay-service\app\models.py ---
+from django.db import models
+import uuid
+
+class Payment(models.Model):
+    METHOD_CHOICES = [
+        ('COD', 'Cash on Delivery'),
+        ('BANK_TRANSFER', 'Bank Transfer'),
+        ('MOMO', 'MoMo Wallet'),
+        ('VNPAY', 'VNPay'),
+    ]
+    STATUS_CHOICES = [
+        ('processing', 'Processing'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    ]
+    order_id = models.IntegerField()
+    customer_id = models.IntegerField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    method = models.CharField(max_length=20, choices=METHOD_CHOICES, default='COD')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='processing')
+    transaction_id = models.CharField(max_length=100, unique=True, blank=True)
+    note = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.transaction_id:
+            self.transaction_id = f"TXN-{uuid.uuid4().hex[:12].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Payment #{self.id} - Order {self.order_id} - {self.status}"
+
+--- C:/bookstore-micro05\recommender-ai-service\app\models.py ---
+from django.db import models
+
+# In a microservices architecture, this service stays "Lean".
+# It doesn't store raw review data (that belongs to comment-rate-service).
+# We only use functions to process external data on-the-fly.
+
+--- C:/bookstore-micro05\ship-service\app\models.py ---
+from django.db import models
+from datetime import timedelta
+from django.utils import timezone
+import random
+import string
+
+class ShippingMethod(models.Model):
+    id_slug = models.SlugField(primary_key=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    base_fee = models.FloatField()
+    free_threshold = models.FloatField(null=True, blank=True)
+    estimated_days = models.IntegerField(default=3)
+
+    def __str__(self):
+        return f"{self.name} (${self.base_fee})"
+
+class Shipment(models.Model):
+    STATUS_CHOICES = [
+        ('ready_for_pickup', 'Ready for Pickup'),
+        ('delivering', 'Delivering'),
+        ('completed', 'Completed (Delivered)'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    order_id = models.IntegerField(unique=True)
+    customer_id = models.IntegerField()
+    tracking_code = models.CharField(max_length=50, unique=True, blank=True)
+    shipping_method = models.CharField(max_length=50, default='standard')
+    address = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ready_for_pickup')
+    estimated_delivery = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.tracking_code:
+            chars = string.ascii_uppercase + string.digits
+            prefix = "EX" if self.shipping_method == 'express' else "ST"
+            self.tracking_code = f"VN-{prefix}-" + ''.join(random.choices(chars, k=8))
+        if not self.estimated_delivery:
+            days = random.randint(1, 2) if self.shipping_method == 'express' else random.randint(3, 5)
+            self.estimated_delivery = timezone.now() + timedelta(days=days)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Shipment #{self.id} - Order {self.order_id} - {self.tracking_code} ({self.shipping_method})"
+
+--- C:/bookstore-micro05\user-service\app\models.py ---
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+
+class User(AbstractUser):
+    ROLE_CHOICES = [
+        ('ADMIN', 'Admin'),
+        ('STAFF', 'Staff'),
+        ('CUSTOMER', 'Customer'),
+    ]
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='CUSTOMER')
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.username} ({self.role})"
+
+class MembershipLevel(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    min_points = models.IntegerField(default=0)
+    discount_percentage = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.name
+
+class LoyaltyWallet(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='wallet')
+    usable_points = models.IntegerField(default=0)
+    accumulated_points = models.IntegerField(default=0)
+    current_level = models.ForeignKey(MembershipLevel, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"Wallet for {self.user.username} - {self.usable_points} pts"
+
+class PointTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('EARN', 'Earned from purchase'),
+        ('SPEND', 'Spent on voucher/reward'),
+        ('EXPIRE', 'Expired')
+    ]
+    wallet = models.ForeignKey(LoyaltyWallet, on_delete=models.CASCADE, related_name='transactions')
+    amount = models.IntegerField()
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    description = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.transaction_type} {self.amount} - {self.wallet.user.username}"
+
+class Address(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
+    name = models.CharField(max_length=100, help_text="Label e.g. 'Home', 'Office'")
+    recipient_name = models.CharField(max_length=255, blank=True, null=True)
+    recipient_phone = models.CharField(max_length=20, blank=True, null=True)
+    street = models.CharField(max_length=255)
+    city = models.CharField(max_length=100)
+    country = models.CharField(max_length=100, default='Vietnam')
+    postal_code = models.CharField(max_length=20, blank=True, default='')
+    is_default = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-is_default', 'id']
+
+    def save(self, *args, **kwargs):
+        # Only one default address per user
+        if self.is_default:
+            Address.objects.filter(
+                user=self.user, is_default=True
+            ).exclude(pk=self.pk).update(is_default=False)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"[{self.name}] {self.street}, {self.city}"
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\auto_parts_model.py ---
+from django.db import models
+from .product_model import ProductModel
+
+class AutoPartsModel(models.Model):
+    product = models.OneToOneField(ProductModel, on_delete=models.CASCADE, related_name='auto_parts_details')
+    part_number = models.CharField(max_length=100)
+    car_model_compatibility = models.TextField(help_text="Comma separated list of compatible car models")
+    warranty_years = models.IntegerField(default=1)
+
+    class Meta:
+        db_table = 'catalog_auto_parts'
+
+    def __str__(self):
+        return f"AutoPart: {self.product.name} ({self.part_number})"
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\book_model.py ---
+from django.db import models
+from .product_model import ProductModel
+
+class BookModel(models.Model):
+    product = models.OneToOneField(ProductModel, on_delete=models.CASCADE, related_name='book_details')
+    author = models.CharField(max_length=255)
+    publisher = models.CharField(max_length=255)
+    isbn = models.CharField(max_length=20)
+
+    class Meta:
+        db_table = 'catalog_book'
+
+    def __str__(self):
+        return f"Book: {self.product.name} by {self.author}"
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\category_model.py ---
+from django.db import models
+
+class CategoryModel(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'catalog_category'
+
+    def __str__(self):
+        return self.name
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\cosmetics_model.py ---
+from django.db import models
+from .product_model import ProductModel
+
+class CosmeticsModel(models.Model):
+    product = models.OneToOneField(ProductModel, on_delete=models.CASCADE, related_name='cosmetics_details')
+    brand = models.CharField(max_length=100)
+    skin_type = models.CharField(max_length=50, help_text="e.g., Dry, Oily, Sensitive, All")
+    is_organic = models.BooleanField(default=False)
+    expiration_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'catalog_cosmetics'
+
+    def __str__(self):
+        return f"Cosmetics: {self.product.name} ({self.brand})"
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\electronics_model.py ---
+from django.db import models
+from .product_model import ProductModel
+
+class ElectronicsModel(models.Model):
+    product = models.OneToOneField(ProductModel, on_delete=models.CASCADE, related_name='electronics_details')
+    brand = models.CharField(max_length=100)
+    warranty = models.IntegerField(help_text="Warranty in months")
+
+    class Meta:
+        db_table = 'catalog_electronics'
+
+    def __str__(self):
+        return f"Electronics: {self.product.name} ({self.brand})"
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\fashion_model.py ---
+from django.db import models
+from .product_model import ProductModel
+
+class FashionModel(models.Model):
+    product = models.OneToOneField(ProductModel, on_delete=models.CASCADE, related_name='fashion_details')
+    size = models.CharField(max_length=10)
+    color = models.CharField(max_length=50)
+
+    class Meta:
+        db_table = 'catalog_fashion'
+
+    def __str__(self):
+        return f"Fashion: {self.product.name} ({self.size}, {self.color})"
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\food_model.py ---
+from django.db import models
+from .product_model import ProductModel
+
+class FoodModel(models.Model):
+    product = models.OneToOneField(ProductModel, on_delete=models.CASCADE, related_name='food_details')
+    expiration_date = models.DateField()
+    weight = models.CharField(max_length=50, help_text="e.g., 500g, 1kg")
+    is_vegetarian = models.BooleanField(default=False)
+    calories = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'catalog_food'
+
+    def __str__(self):
+        return f"Food: {self.product.name} (Exp: {self.expiration_date})"
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\furniture_model.py ---
+from django.db import models
+from .product_model import ProductModel
+
+class FurnitureModel(models.Model):
+    product = models.OneToOneField(ProductModel, on_delete=models.CASCADE, related_name='furniture_details')
+    material = models.CharField(max_length=100, help_text="e.g., Oak, Metal, Plastic")
+    dimensions = models.CharField(max_length=100, help_text="e.g., 200x150x50 cm")
+    weight_capacity = models.FloatField(null=True, blank=True, help_text="in kg")
+
+    class Meta:
+        db_table = 'catalog_furniture'
+
+    def __str__(self):
+        return f"Furniture: {self.product.name} ({self.material})"
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\medicine_model.py ---
+from django.db import models
+from .product_model import ProductModel
+
+class MedicineModel(models.Model):
+    product = models.OneToOneField(ProductModel, on_delete=models.CASCADE, related_name='medicine_details')
+    active_ingredient = models.CharField(max_length=255)
+    dosage = models.CharField(max_length=100, help_text="e.g., 500mg, 10ml")
+    prescription_required = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'catalog_medicine'
+
+    def __str__(self):
+        return f"Medicine: {self.product.name} ({self.active_ingredient})"
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\pet_supplies_model.py ---
+from django.db import models
+from .product_model import ProductModel
+
+class PetSuppliesModel(models.Model):
+    product = models.OneToOneField(ProductModel, on_delete=models.CASCADE, related_name='pet_supplies_details')
+    animal_type = models.CharField(max_length=50, help_text="e.g., Dog, Cat, Bird, Fish")
+    brand = models.CharField(max_length=100)
+    weight_limit = models.FloatField(null=True, blank=True, help_text="in kg")
+
+    class Meta:
+        db_table = 'catalog_pet_supplies'
+
+    def __str__(self):
+        return f"PetSupply: {self.product.name} for {self.animal_type}"
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\product_model.py ---
+from django.db import models
+from .category_model import CategoryModel
+
+class ProductModel(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2) # Money is better as Decimal, but user said Float. I'll use Decimal as it's already there and safer.
+    stock = models.IntegerField(default=0)
+    image_url = models.URLField(max_length=500, blank=True, null=True)
+    category = models.ForeignKey(CategoryModel, on_delete=models.CASCADE, null=True, blank=True, related_name='products')
+    attributes = models.JSONField(default=dict, blank=True) # Legacy attributes
+
+    class Meta:
+        db_table = 'catalog_product'
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # 2. Trigger auto-sync to Catalog Mongo (assuming the same utility is accessible)
+        self._sync_to_mongo()
+
+    def delete(self, *args, **kwargs):
+        product_id = self.id
+        super().delete(*args, **kwargs)
+        self._delete_from_mongo(product_id)
+
+    def _sync_to_mongo(self):
+        try:
+            import requests
+            # Determine domain data for sync
+            domain_data = {}
+            product_type = "General"
+            if hasattr(self, 'book_details'):
+                product_type = "Book"
+                domain_data = {"author": self.book_details.author, "publisher": self.book_details.publisher, "isbn": self.book_details.isbn}
+            elif hasattr(self, 'electronics_details'):
+                product_type = "Electronics"
+                domain_data = {"brand": self.electronics_details.brand, "warranty": self.electronics_details.warranty}
+            elif hasattr(self, 'fashion_details'):
+                product_type = "Fashion"
+                domain_data = {"size": self.fashion_details.size, "color": self.fashion_details.color}
+            elif hasattr(self, 'cosmetics_details'):
+                product_type = "Cosmetics"
+                domain_data = {"brand": self.cosmetics_details.brand, "skin_type": self.cosmetics_details.skin_type, "expiration_date": str(self.cosmetics_details.expiration_date)}
+            elif hasattr(self, 'toys_details'):
+                product_type = "Toys"
+                domain_data = {"age_group": self.toys_details.age_group, "material": self.toys_details.material}
+            elif hasattr(self, 'furniture_details'):
+                product_type = "Furniture"
+                domain_data = {"material": self.furniture_details.material, "dimensions": self.furniture_details.dimensions}
+            elif hasattr(self, 'food_details'):
+                product_type = "Food"
+                domain_data = {"expiration_date": str(self.food_details.expiration_date), "weight": self.food_details.weight}
+            elif hasattr(self, 'medicine_details'):
+                product_type = "Medicine"
+                domain_data = {"active_ingredient": self.medicine_details.active_ingredient, "dosage": self.medicine_details.dosage}
+            elif hasattr(self, 'pet_supplies_details'):
+                product_type = "PetSupplies"
+                domain_data = {"animal_type": self.pet_supplies_details.animal_type, "brand": self.pet_supplies_details.brand}
+            elif hasattr(self, 'auto_parts_details'):
+                product_type = "AutoParts"
+                domain_data = {"part_number": self.auto_parts_details.part_number, "car_model_compatibility": self.auto_parts_details.car_model_compatibility}
+
+            data = {
+                "sql_book_id": self.id,
+                "name": self.name,
+                "description": self.description,
+                "category_id": self.category_id,
+                "category_name": self.category.name if self.category else "Unknown",
+                "price": float(self.price),
+                "stock": self.stock,
+                "image_url": self.image_url,
+                "attributes": self.attributes,
+                "product_type": product_type,
+                "domain_data": domain_data
+            }
+            requests.post("http://catalog-service:8000/sync/product/", json=data, timeout=3)
+        except Exception as e:
+            print(f"[Sync] Failed to sync Product {self.id}: {e}")
+
+    def _delete_from_mongo(self, product_id):
+        try:
+            import requests
+            requests.delete(f"http://catalog-service:8000/sync/product/{product_id}/", timeout=3)
+        except Exception as e:
+            pass
+
+    def __str__(self):
+        return self.name
+
+--- C:/bookstore-micro05/product-service/modules/catalog/infrastructure/models\toys_model.py ---
+from django.db import models
+from .product_model import ProductModel
+
+class ToysModel(models.Model):
+    product = models.OneToOneField(ProductModel, on_delete=models.CASCADE, related_name='toys_details')
+    age_group = models.CharField(max_length=50, help_text="e.g., 0-3, 3+, 12+")
+    material = models.CharField(max_length=100)
+    requires_batteries = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'catalog_toys'
+
+    def __str__(self):
+        return f"Toy: {self.product.name} ({self.age_group})"

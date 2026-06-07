@@ -4,11 +4,12 @@ import pandas as pd
 from django.conf import settings
 
 # --- API Endpoints ---
-CUSTOMER_SERVICE_URL = "http://customer-service:8000"
+CUSTOMER_SERVICE_URL = "http://user-service:8000"
 ORDER_SERVICE_URL = "http://order-service:8000"
 CART_SERVICE_URL = "http://cart-service:8000"
 PRODUCT_SERVICE_URL = "http://product-service:8000"
 COMMENT_SERVICE_URL = "http://comment-rate-service:8006"
+INTERACTION_SERVICE_URL = "http://interaction-service:8000"
 
 class BehaviorDataProcessor:
     """
@@ -71,24 +72,29 @@ class BehaviorDataProcessor:
                     user_review_count[u_id] = user_review_count.get(u_id, 0) + 1
         except: pass
 
-        # 3. Carts & Interest Stats
-        print("[PROCESSOR] Fetching Carts...")
+        # 3. MongoDB Interactions (Interaction Service)
+        print("[PROCESSOR] Fetching MongoDB Interactions...")
         try:
-            r_cust = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/?page_size=100", timeout=3)
+            r_cust = requests.get(f"{CUSTOMER_SERVICE_URL}/users/?page_size=100", timeout=3)
             if r_cust.status_code == 200:
                 data = r_cust.json()
                 customers = data if isinstance(data, list) else data.get('results', [])
                 for cust in customers:
                     cid = cust['id']
-                    r_cart = requests.get(f"{CART_SERVICE_URL}/carts/{cid}/", timeout=1)
-                    if r_cart.status_code == 200:
-                        items = r_cart.json()
-                        user_cart_count[cid] = len(items)
-                        for c_item in items:
-                            pid = c_item.get('product_id') or c_item.get('book_id')
+                    # Fetch from interaction-service
+                    r_logs = requests.get(f"{INTERACTION_SERVICE_URL}/logs/user/{cid}/", timeout=1)
+                    if r_logs.status_code == 200:
+                        logs = r_logs.json()
+                        for log in logs:
+                            pid = log.get('product_id') or log.get('book_id')
                             if pid:
-                                cart_map[(cid, pid)] = 2.0 # CART IS 2.0
-        except: pass
+                                action = log.get('action', '').upper()
+                                if 'VIEW' in action: score = 1.0
+                                elif 'ADD_TO_CART' in action: score = 2.0
+                                else: score = 1.5
+                                cart_map[(cid, pid)] = score
+        except Exception as e:
+            print(f"[PROCESSOR] MongoDB interaction fetch failed: {e}")
 
         # --- CONSOLIDATION WITH LOG NORMALIZATION ---
         print("[PROCESSOR] Generating Normalized AI Dataset...")

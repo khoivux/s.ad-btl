@@ -23,7 +23,7 @@ from app.models import Order, OrderItem, OrderStatusLog
 PRODUCT_SERVICE_URL  = "http://product-service:8000"
 PAY_SERVICE_URL      = "http://pay-service:8000"
 SHIP_SERVICE_URL     = "http://ship-service:8000"
-CUSTOMER_SERVICE_URL = "http://customer-service:8000"
+CUSTOMER_SERVICE_URL = "http://user-service:8000"
 
 SHIPPING_METHODS = ['economy', 'standard', 'fast']
 SHIPPING_FEES    = {'economy': '1.00', 'standard': '2.50', 'fast': '5.00'}
@@ -51,7 +51,7 @@ def seed():
     # 1. Lấy danh sách customers
     print("\n=== Fetching customers ===")
     try:
-        cust_r = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/", timeout=5)
+        cust_r = requests.get(f"{CUSTOMER_SERVICE_URL}/users/", timeout=5)
         customers = cust_r.json() if cust_r.status_code == 200 else []
     except Exception as e:
         print(f"  ERROR: {e}")

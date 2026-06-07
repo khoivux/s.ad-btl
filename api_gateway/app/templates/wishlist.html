@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Wishlist — MicroStore</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: {
+                colors: { primary: '#4F46E5', secondary: '#F59E0B', accent: '#E11D48' },
+                fontFamily: { sans: ['Nunito Sans', 'sans-serif'], heading: ['Rubik', 'sans-serif'] }
+            }}
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;500;600;700&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen">
+    {% include 'navbar.html' %}
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-10">
+        <h1 class="text-4xl font-black text-slate-900 font-heading mb-2 tracking-tight">My Wishlist</h1>
+        <p class="text-slate-500">Items you've saved for later.</p>
+    </div>
+
+    {% if wishlist_items %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        {% for product in wishlist_items %}
+        <div id="product-card-{{ product.id }}" class="group bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-500 flex flex-col h-full hover:-translate-y-2">
+            <!-- Image Area -->
+            <div class="relative aspect-square overflow-hidden bg-slate-100 p-6 flex items-center justify-center">
+                <img src="{{ product.image_url }}" alt="{{ product.name }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                
+                <!-- Action Buttons Overlay -->
+                <div class="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+                    <a href="/products/{{ product.id }}/" class="w-12 h-12 bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-600 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-500" title="View Details">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </a>
+                    <button onclick="removeFromWishlist({{ product.id }})" class="w-12 h-12 bg-white text-rose-600 rounded-full flex items-center justify-center shadow-lg hover:bg-rose-600 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-500 delay-75" title="Remove from Wishlist">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 flex flex-col flex-1">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-500 px-2 py-0.5 bg-indigo-50 rounded-full">{{ product.category_name }}</span>
+                    <span class="text-xs text-slate-400 font-medium italic">Added {{ product.added_at|slice:":10" }}</span>
+                </div>
+                <h3 class="font-black text-slate-900 mb-2 line-clamp-1 font-heading">{{ product.name }}</h3>
+                <div class="mt-auto pt-4 flex items-center justify-between">
+                    <span class="text-xl font-black text-indigo-600">${{ product.price }}</span>
+                    <button onclick="addToCart({{ product.id }})" class="bg-slate-900 text-white p-3 rounded-xl hover:bg-indigo-600 transition-all shadow-md active:scale-95">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-3xl p-20 text-center border border-dashed border-slate-300">
+        <div class="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">❤️</div>
+        <h2 class="text-2xl font-black text-slate-900 font-heading mb-2">Your wishlist is empty</h2>
+        <p class="text-slate-500 mb-8">Browse our products and save your favorites here!</p>
+        <a href="/products/" class="inline-flex bg-indigo-600 text-white font-bold px-10 py-4 rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/30">Start Shopping</a>
+    </div>
+    {% endif %}
+</main>
+
+<footer class="bg-white border-t border-slate-200 mt-24 py-12">
+    <div class="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm">
+        &copy; 2026 MicroStore. All items secured with JWT & Microservices.
+    </div>
+</footer>
+
+<script>
+    async function addToCart(productId) {
+        try {
+            const response = await fetch(`/api/carts/items/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, quantity: 1 })
+            });
+            if (response.status === 401) { window.location.href = '/login/?next=/wishlist/'; return; }
+            if (response.ok) {
+                showToast('Added to cart!');
+            } else {
+                alert('Could not add to cart.');
+            }
+        } catch (err) { console.error(err); }
+    }
+
+    async function removeFromWishlist(productId) {
+        if(!confirm('Remove this item from wishlist?')) return;
+        try {
+            const res = await fetch(`/api/wishlist/toggle/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, action: 'remove' })
+            });
+            if (res.ok) {
+                const card = document.getElementById(`product-card-${productId}`);
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    card.remove();
+                    if(document.querySelectorAll('[id^="product-card-"]').length === 0) {
+                        window.location.reload();
+                    }
+                }, 500);
+                showToast('Removed from wishlist');
+            }
+        } catch (err) { console.error(err); }
+    }
+
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-2xl translate-y-10 opacity-0 transition-all duration-500 z-50 flex items-center gap-3 font-bold border border-slate-700';
+        toast.innerHTML = `<div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"><svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div> ${msg}`;
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
+        setTimeout(() => {
+            toast.classList.add('translate-y-10', 'opacity-0');
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
+</script>
+</body>
+</html>

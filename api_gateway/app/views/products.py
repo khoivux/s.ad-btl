@@ -112,8 +112,9 @@ class ProductSearchView(BaseProxyView):
             context['customer_name'] = request.session.get('customer_name')
             if q:
                 try:
+                    from django.conf import settings
                     requests.post(
-                        f"http://customer-service:8000/customers/{customer_id}/search-history/",
+                        f"{settings.INTERACTION_SERVICE_URL}/search-history/{customer_id}/",
                         json={'query': q},
                         timeout=2
                     )
@@ -160,9 +161,10 @@ class ProductDetailView(BaseProxyView):
 
             # Log interaction
             try:
+                from django.conf import settings
                 requests.post(
-                    f"http://customer-service:8000/customers/{customer_id}/interaction-logs/",
-                    json={'product_id': product_id, 'action_type': 'VIEW_PRODUCT'},
+                    f"{settings.INTERACTION_SERVICE_URL}/logs/",
+                    json={'customer_id': customer_id, 'action_type': 'VIEW_PRODUCT', 'product_id': product_id},
                     timeout=2
                 )
             except Exception:
@@ -196,10 +198,80 @@ class ProductReviewSubmitView(CustomerRequiredMixin, BaseProxyView):
             r = self.proxy_request(request, "reviews/", method="POST", payload=payload)
             if not r:
                 return JsonResponse({'error': 'Service Unavailable'}, status=503)
+
+            # Log Interactions (Rating & Comment)
+            if r.status_code in (200, 201):
+                try:
+                    from django.conf import settings
+                    requests.post(
+                        f"{settings.INTERACTION_SERVICE_URL}/logs/",
+                        json={'customer_id': payload['customer_id'], 'action_type': 'RATE_PRODUCT', 'product_id': product_id},
+                        timeout=2
+                    )
+                    requests.post(
+                        f"{settings.INTERACTION_SERVICE_URL}/logs/",
+                        json={'customer_id': payload['customer_id'], 'action_type': 'COMMENT_PRODUCT', 'product_id': product_id},
+                        timeout=2
+                    )
+                except Exception: pass
+
             return JsonResponse(r.json(), status=r.status_code)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
+class WishlistPageView(CustomerRequiredMixin, BaseProxyView):
+    service_url = RECOMMENDER_SERVICE_URL # We might need to fetch product info from catalog/product-service though
+
+    def get(self, request):
+        customer_id = request.session.get('customer_id')
+        from django.conf import settings
+        
+        # 1. Get wishlist from interaction-service
+        try:
+            r = requests.get(f"{settings.INTERACTION_SERVICE_URL}/wishlist/{customer_id}/", timeout=5)
+            wishlist_data = r.json() if r.status_code == 200 else []
+        except:
+            wishlist_data = []
+            
+        # 2. Get product details for each item in wishlist
+        products = []
+        for item in wishlist_data:
+            pid = item['product_id']
+            try:
+                # Fetch from catalog-service for efficiency
+                pr = requests.get(f"{CATALOG_SERVICE_URL}/products/{pid}/", timeout=2)
+                if pr.status_code == 200:
+                    p_info = pr.json()
+                    p_info['added_at'] = item['added_at']
+                    products.append(p_info)
+            except:
+                pass
+                
+        context = {
+            "wishlist_items": products,
+            "customer_id": customer_id,
+            "customer_name": request.session.get('customer_name'),
+        }
+        return render(request, "wishlist.html", context)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class WishlistToggleView(CustomerRequiredMixin, BaseProxyView):
+    def post(self, request):
+        customer_id = request.session.get('customer_id')
+        try:
+            data = json.loads(request.body)
+            product_id = data.get('product_id')
+            action = data.get('action', 'add') # 'add' or 'remove'
+            
+            from django.conf import settings
+            if action == 'add':
+                r = requests.post(f"{settings.INTERACTION_SERVICE_URL}/wishlist/{customer_id}/", json={'product_id': product_id}, timeout=5)
+            else:
+                r = requests.delete(f"{settings.INTERACTION_SERVICE_URL}/wishlist/{customer_id}/", json={'product_id': product_id}, timeout=5)
+                
+            return JsonResponse(r.json() if r else {'error': 'Failed'}, status=r.status_code if r else 500)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
 # Backward compat aliases
 BookListView = ProductListView

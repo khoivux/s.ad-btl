@@ -8,4 +8,6 @@ class ProductSerializer(serializers.Serializer):
     stock = serializers.IntegerField()
     image_url = serializers.URLField(allow_blank=True)
     category_id = serializers.IntegerField(allow_null=True, required=False)
-    attributes = serializers.JSONField()
+    attributes = serializers.JSONField(required=False)
+    product_type = serializers.CharField(required=False, default="General")
+    domain_data = serializers.JSONField(required=False, default=dict)
