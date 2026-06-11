@@ -181,6 +181,24 @@ class ProductDetailView(BaseProxyView):
         return render(request, "product_detail.html", context)
 
 
+class ProductPreviewApiView(BaseProxyView):
+    service_url = CATALOG_SERVICE_URL
+
+    def get(self, request, product_id):
+        r = self.proxy_request(request, f"products/{product_id}/", method="GET")
+        if r and r.status_code == 200:
+            product = r.json()
+            return JsonResponse({
+                'id': product.get('id'),
+                'name': product.get('name'),
+                'price': product.get('price'),
+                'image_url': product.get('image_url') or product.get('image'),
+                'category_name': product.get('category_name'),
+                'description': product.get('description', '')[:120] + '...' if product.get('description') else ''
+            })
+        return JsonResponse({'error': 'Product not found'}, status=404)
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class ProductReviewSubmitView(CustomerRequiredMixin, BaseProxyView):
     service_url = COMMENT_RATE_SERVICE_URL

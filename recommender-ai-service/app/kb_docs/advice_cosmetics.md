@@ -1,10 +1,12 @@
-# Hướng dẫn chọn Mỹ phẩm tại MicroStore
+# Cẩm nang chọn Mỹ phẩm & Nước hoa tại MicroStore
 
-## Phân loại theo loại da (Skin Type)
-- **Da dầu/hỗn hợp thiên dầu**: Chọn sản phẩm dạng gel hoặc sữa mỏng nhẹ, có nhãn "oil-free" (không chứa dầu) hoặc "non-comedogenic" (không gây bít tắc lỗ chân lông).
-- **Da khô**: Chọn sản phẩm dạng kem (cream) giàu dưỡng chất, chứa HA (Hyaluronic Acid) hoặc Ceramide để cấp ẩm sâu.
-- **Da nhạy cảm**: Tránh hương liệu (fragrance-free) và cồn khô, ưu tiên các sản phẩm lành tính chiết xuất từ thiên nhiên.
+Làn da khỏe đẹp và hương thơm tinh tế giúp bạn tự tin hơn mỗi ngày. Hãy chọn sản phẩm phù hợp nhất với làn da và phong cách của bạn:
 
-## Hạn sử dụng & Cách bảo quản
-- Luôn kiểm tra hạn sử dụng (EXP) và ký hiệu thời hạn sử dụng sau khi mở nắp (PAO - thường là hình hũ mỹ phẩm mở nắp kèm số tháng như 6M, 12M).
-- Bảo quản mỹ phẩm ở nơi khô ráo, thoáng mát, tránh ánh nắng trực tiếp.
+## 1. Tinh chất Dưỡng da chuyên sâu (Skincare Serums)
+- **Advanced Night Repair (Estee Lauder)**: Tinh chất phục hồi da ban đêm huyền thoại, giúp giảm rõ rệt các dấu hiệu lão hóa, cấp ẩm và mang lại làn da rạng rỡ sau khi thức dậy. Phù hợp cho mọi loại da.
+- **Revitalift Serum (L'Oreal Paris)**: Tinh chất dưỡng ẩm sâu chứa Hyaluronic Acid đậm đặc, giúp làm căng mọng da và giảm nếp nhăn hiệu quả.
+- **Niacinamide 10% + Zinc 1% (The Ordinary)**: Giải pháp tuyệt vời cho làn da dầu mụn, giúp kiểm soát bã nhờn, thu nhỏ lỗ chân lông và làm đều màu da.
+
+## 2. Nước hoa thời thượng (Fragrances)
+- **Sauvage Eau de Parfum (Dior)**: Hương thơm nam tính đầy hoang dã và lôi cuốn với nốt hương cam Bergamot cay nồng cùng gỗ ấm áp. Thích hợp cho nam giới lịch lãm, hiện đại.
+- **No. 5 Eau de Parfum (Chanel)**: Biểu tượng nước hoa nữ cổ điển quý phái, mang hương thơm sang trọng từ hoa hồng Grasse và hoa nhài kết hợp hương An-đê-hít đặc trưng.

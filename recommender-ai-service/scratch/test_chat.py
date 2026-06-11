@@ -1,12 +1,11 @@
 import requests
 
-url = "http://localhost:8010/chat/consultant/1/"
+url = "http://localhost:8010/chat/consultant/3/"
 headers = {"Content-Type": "application/json"}
 
 queries = [
-    "Silver được giảm bao nhiêu % và ship hỏa tốc bao nhiêu tiền?",
-    "Mình muốn tìm mỹ phẩm cho da dầu",
-    "Bạn có khỏe không?"
+    "xin chào",
+    "gợi ý cho mình 2 cuốn sách hay và 1 món đồ gia dụng tiện ích xem sao"
 ]
 
 for q in queries:

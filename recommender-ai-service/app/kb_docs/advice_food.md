@@ -1,9 +1,11 @@
-# Hướng dẫn chọn Thực phẩm tại MicroStore
+# Cẩm nang chọn Thực phẩm & Ăn vặt tại MicroStore
 
-## Đảm bảo độ tươi ngon & Hạn sử dụng
-- Ưu tiên chọn các sản phẩm thực phẩm organic, có nguồn gốc xuất xứ rõ ràng.
-- Kiểm tra kỹ ngày sản xuất (MFG) và hạn sử dụng (EXP). Đối với thực phẩm tươi sống, nên chế biến ngay trong ngày hoặc cấp đông đúng cách.
+Thực phẩm thơm ngon và đồ ăn vặt chất lượng mang lại những giờ phút thư giãn tuyệt vời bên người thân:
 
-## Trọng lượng & Quy cách đóng gói
-- Chọn quy cách đóng gói phù hợp với nhu cầu của gia đình để tránh lãng phí thực phẩm dư thừa.
-- Các sản phẩm đóng hộp nên chọn vỏ hộp nguyên vẹn, không móp méo hay rỉ sét.
+## 1. Đồ ăn vặt ngọt ngào & Tiện lợi
+- **Chocolate Sandwich Cookies (Oreo)**: Bánh quy kẹp kem sô-cô-la Oreo giòn rụm thơm ngon, là món ăn vặt được yêu thích nhất bởi cả trẻ em lẫn người lớn. Tuyệt vời hơn khi thưởng thức cùng một ly sữa tươi mát lạnh.
+- **Hazelnut Spread (Nutella)**: Bơ hạt phỉ sô-cô-la Nutella sánh mịn, thơm ngậy, hoàn hảo để phết lên bánh mì sandwich ăn sáng hoặc làm nguyên liệu cho các món bánh ngọt gia đình.
+
+## 2. Snack & Đồ uống giải khát cho các buổi tiệc
+- **Classic Potato Chips (Lay's)**: Khoai tây chiên cắt lát mỏng Lay's giòn tan, đậm đà hương vị truyền thống, là món ăn không thể thiếu trong các buổi xem phim hay tụ họp bạn bè.
+- **Diet Coke (Coca-Cola)**: Nước ngọt giải khát không đường, không calo, mang lại cảm giác sảng khoái tức thì mà không lo tăng cân.

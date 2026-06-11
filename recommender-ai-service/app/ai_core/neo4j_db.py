@@ -117,13 +117,13 @@ class Neo4jDBManager:
         """
         query = """
         MATCH (u:User {id: $user_id})-[r]->(p:Product)
-        RETURN type(r) as action, p.title as title
+        RETURN type(r) as action, p.title as title, p.id as product_id
         ORDER BY r.timestamp DESC
         LIMIT 5
         """
         with self.driver.session() as session:
             result = session.run(query, user_id=user_id)
-            return [{"action": record["action"], "title": record["title"]} for record in result]
+            return [{"action": record["action"], "title": record["title"], "product_id": record["product_id"]} for record in result]
 
     def compute_user_similarity(self):
         """

@@ -119,6 +119,7 @@ class VectorIndexProductsView(APIView):
                 # Trích xuất nội dung văn bản để AI "học"
                 print(f"[INDEXER] Chuẩn bị dữ liệu cho sản phẩm: {p['name']} (ID: {p['id']})")
                 content = (
+                    f"Mã sản phẩm (ID): {p['id']}\n"
                     f"Tên sản phẩm: {p['name']}\n"
                     f"Giá bán: {p.get('price', 'Liên hệ')} $\n"
                     f"Danh mục: {p.get('category_name', 'Chung')}\n"
@@ -199,13 +200,13 @@ class BehaviorExportView(APIView):
             count = 0
             with open(dataset_path, mode='w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
-                writer.writerow(['user_id', 'product_id', 'behavior_score'])
+                writer.writerow(['user_id', 'product_id', 'action', 'behavior_score'])
                 
                 with neo4j_db.driver.session() as session:
                     res = session.run(query)
                     for rec in res:
                         score = weights.get(rec['action'], 1.0)
-                        writer.writerow([rec['user_id'], rec['product_id'], score])
+                        writer.writerow([rec['user_id'], rec['product_id'], rec['action'], score])
                         count += 1
 
             return Response({
