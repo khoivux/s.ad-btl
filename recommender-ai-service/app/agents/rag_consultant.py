@@ -12,12 +12,13 @@ class ConsultantAgent:
     def get_advice_stream(self, user_id, user_message, chat_history_list=None):
         # Ensure latest key is used
         genai.configure(api_key=settings.GOOGLE_API_KEY)
-        self.model = genai.GenerativeModel('models/gemini-flash-latest')
+        self.model = genai.GenerativeModel('models/gemini-2.5-flash-lite')
 
         # 1. Persona and Context
         print(f"[AI-LOG] Fetching GraphRAG and LSTM context for user {user_id}...")
         
-        # 1.1 Fetch real-time customer context from customer-service
+        # --- NGUỒN 1: HỒ SƠ KHÁCH HÀNG (CUSTOMER PROFILE) ---
+        # Gọi HTTP API sang 'user-service' để lấy thông tin điểm tích lũy và hạng thành viên hiện tại của khách hàng.
         points, level_id = 0, 1
         try:
             import requests
@@ -36,7 +37,8 @@ class ConsultantAgent:
         try:
             from ..ai_core.behavior_trainer import behavior_trainer
             
-            # --- NEURAL LSTM RANKING ---
+            # --- NGUỒN 2: DỰ ĐOÁN CHUỖI HÀNH VI LSTM (NEURAL LSTM RANKING) ---
+            # Gọi bộ huấn luyện LSTM để lấy ra danh sách các sản phẩm tiếp theo được đề xuất riêng cho khách hàng này.
             print(f"[AI-LOG] 🧠 Identifying Sequential Gems via LSTM for User {user_id}...")
             ai_recs = behavior_trainer.get_sequential_recommendations(user_id, top_k=20)
             
@@ -58,7 +60,8 @@ class ConsultantAgent:
                 ])
                 print(f"[AI-LOG] AI LSTM Pool of products ready with domain details.")
             
-            # --- KNOWLEDGE GRAPH TRIPLETS ---
+            # --- NGUỒN 3: ĐỒ THỊ TRI THỨC NEO4J (KNOWLEDGE GRAPH TRIPLETS) ---
+            # Truy vấn cơ sở dữ liệu đồ thị Neo4j để lấy ra 5 hành vi tương tác (view/purchase/wishlist...) gần nhất của khách hàng.
             graph_triples = neo4j_db.get_direct_interactions_context(user_id)
             triples_context = "\n".join([
                 f"- Khách hàng đã {t['action']} sản phẩm '{t['title']}'."
@@ -71,7 +74,8 @@ class ConsultantAgent:
             print(f"[AI-LOG] Failed LSTM or Graph retrieval: {e}")
             kb_context = "Hệ thống tri thức tạm thời gián đoạn."
 
-        # --- SEMANTIC VECTOR DB SEARCH (RAG) ---
+        # --- NGUỒN 4: CƠ SỞ DỮ LIỆU VECTOR CHROMADB (SEMANTIC VECTOR DB SEARCH - RAG) ---
+        # Sử dụng ChromaDB để tìm các tài liệu tĩnh (cẩm nang, chính sách) hoặc thông tin sản phẩm có độ tương đồng cao nhất với câu hỏi hiện tại.
         rag_context = ""
         try:
             from ..ai_core.vector_db import vector_db
@@ -97,7 +101,8 @@ class ConsultantAgent:
         except Exception as e:
             print(f"[AI-LOG] Failed Vector DB query: {e}")
 
-        # 3. History
+        # --- NGUỒN 5: LỊCH SỬ CUỘC TRÒ CHUYỆN (CHAT HISTORY) ---
+        # Duyệt qua danh sách tin nhắn cũ trong phiên hội thoại hiện tại để tạo tính liên kết cho câu trả lời.
         history_text = ""
         if isinstance(chat_history_list, list):
             for m in chat_history_list:
