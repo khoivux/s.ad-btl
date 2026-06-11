@@ -257,6 +257,9 @@ class OrderListCreate(APIView):
         status = request.query_params.get('status')
         days = request.query_params.get('days')
         customer_id = request.query_params.get('customer_id')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        sort_price = request.query_params.get('sort_price')
 
         queryset = Order.objects.all()
 
@@ -269,8 +272,18 @@ class OrderListCreate(APIView):
             from django.utils import timezone
             cutoff = timezone.now() - timedelta(days=int(days))
             queryset = queryset.filter(created_at__gte=cutoff)
+            
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date)
 
-        orders = queryset.order_by('-created_at')
+        if sort_price == 'asc':
+            orders = queryset.order_by('total_amount', '-created_at')
+        elif sort_price == 'desc':
+            orders = queryset.order_by('-total_amount', '-created_at')
+        else:
+            orders = queryset.order_by('-created_at')
         # Pagination
         total_count = orders.count()
         page = int(request.query_params.get('page', 1))
@@ -311,6 +324,25 @@ class OrderStatusUpdate(APIView):
             valid = [s[0] for s in Order.STATUS_CHOICES]
             if new_status not in valid:
                 return Response({'error': f'Invalid status. Must be one of: {valid}'}, status=400)
+
+            # Enforce state machine transitions
+            allowed_transitions = {
+                'pending': ['processing', 'cancelled', 'failed'],
+                'pending_confirmation': ['processing', 'cancelled'],
+                'processing': ['ready_for_pickup', 'cancelled'],
+                'ready_for_pickup': ['delivering', 'cancelled'],
+                'delivering': ['completed', 'cancelled'],
+                'completed': [],
+                'cancelled': [],
+                'failed': []
+            }
+            
+            # Allow skipping some states during manual sync or Edge cases, but block backward flows
+            if order.status != new_status and new_status not in allowed_transitions.get(order.status, []):
+                return Response({
+                    'error': f'Luật chuyển trạng thái không cho phép: không thể chuyển từ "{order.status}" sang "{new_status}"'
+                }, status=400)
+
             order.status = new_status
             order.save()
             _add_status_log(order, new_status, "Manual status adjustment by Staff.")

@@ -85,6 +85,9 @@ class UserDetail(APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
+    authentication_classes = ()
+    permission_classes = ()
+
     def post(self, request):
         username = request.data.get('username') or request.data.get('email')
         password = request.data.get('password')

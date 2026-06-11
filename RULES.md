@@ -68,6 +68,7 @@ The project follows a **Microservices Architecture** with a central **API Gatewa
 ### 🚧 In Progress (Unfinished)
 - [ ] **Frontend Cleanup**: Some templates (`checkout.html`, `search.html`) still use `book.title` or `book.author`. These need to be generalized to `product.name` and dynamic attributes.
 - [ ] **AI Model Integration**: The `recommender-ai-service` is currently being trained with LSTM/RNN models. Integration with the frontend "AI Pick" section is active but may need tuning.
+- [ ] **RAG Chatbot Enhancements**: Upgrading the AI Chatbot to query ChromaDB dynamically using semantic search with L2 similarity filtering (< 0.85). The knowledge base has been modularized into category-specific files (`advice_*.md`) under `recommender-ai-service/app/kb_docs/`.
 - [ ] **Legacy File Removal**: Files like `books.html` or `book_detail.html` in `api_gateway` are deprecated and should be removed once full stability is confirmed.
 
 ---
@@ -85,6 +86,7 @@ The project follows a **Microservices Architecture** with a central **API Gatewa
 - **Prioritize the Migration Plan**: Before making changes to Order/Pay/Ship, read `docs/PLAN-order-pay-ship-migration.md`.
 - **Be Aesthetic**: The frontend uses Tailwind CSS with a custom palette (indigo/amber). Keep designs premium and responsive.
 - **Check Dependencies**: Changing a field in `product-service` often requires updates in `catalog-service` (sync) and `api_gateway` (view/template).
+- **RAG & Knowledge Base updates**: The chatbot uses dynamic vector-based RAG. If you modify store policies or product structures, update the corresponding markdown file in `recommender-ai-service/app/kb_docs/` and run the manual re-index endpoint (`POST /api/recommender/index-kb/`) to keep the vector database updated.
 
 ---
-*Last Updated: 2026-05-13*
+*Last Updated: 2026-06-10*

@@ -1,6 +1,6 @@
-# HỆ THỐNG THÀNH VIÊN VÀ ƯU ĐÃI MICROBOOK
+# HỆ THỐNG THÀNH VIÊN VÀ ƯU ĐÃI MICROSTORE
 
-Chào mừng bạn đến với chương trình khách hàng thân thiết của MicroBook. Chúng tôi trân trọng sự đồng hành của bạn thông qua hệ thống tích điểm và thăng hạng thành viên.
+Chào mừng bạn đến với chương trình khách hàng thân thiết của MicroStore. Chúng tôi trân trọng sự đồng hành của bạn thông qua hệ thống tích điểm và thăng hạng thành viên.
 
 ## 1. Các cấp bậc thành viên (Membership Levels)
 Càng tích lũy nhiều điểm (Loyalty Points), bạn càng nhận được nhiều ưu đãi chiết khấu trực tiếp trên mỗi đơn hàng:
@@ -14,7 +14,7 @@ Càng tích lũy nhiều điểm (Loyalty Points), bạn càng nhận được n
 | **Diamond** | 15.000 điểm | **20%** |
 
 ## 2. Cách tính điểm và thăng hạng
-MicroBook áp dụng công thức tích điểm đơn giản và minh bạch:
+MicroStore áp dụng công thức tích điểm đơn giản và minh bạch:
 - **Công thức**: **1 $ chi tiêu = 1 Điểm tích lũy (Loyalty Point)**.
 - **Ví dụ**: Nếu bạn hoàn thành đơn hàng trị giá 100 $, bạn sẽ nhận được 100 điểm vào ví tài khoản.
 - **Thời điểm cộng điểm**: Điểm thưởng sẽ được cộng vào tài khoản ngay sau khi đơn hàng của bạn chuyển sang trạng thái **"Hoàn thành" (Completed)**.
@@ -23,7 +23,7 @@ MicroBook áp dụng công thức tích điểm đơn giản và minh bạch:
 ## 3. Tiêu điểm và nhận Voucher
 Ngoài việc thăng hạng, bạn có thể dùng điểm trong ví **Điểm có thể sử dụng (usable_points)** để:
 - Đổi lấy các Voucher giảm giá đặc biệt trong cửa hàng.
-- Nhận các phần quà tri ân từ MicroBook theo từng thời điểm.
+- Nhận các phần quà tri ân từ MicroStore theo từng thời điểm.
 
 ## 3. Lưu ý quan trọng
 - Ưu đãi chiết khấu thành viên được áp dụng trực tiếp trên tổng giá trị đơn hàng (trước khi tính phí ship).

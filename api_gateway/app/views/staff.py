@@ -134,7 +134,7 @@ class StaffCategoryModifyView(StaffRequiredMixin, BaseProxyView):
         try:
             data = json.loads(request.body)
             r = self.proxy_request(request, f"products/categories/{pk}/", method="PUT", payload=data)
-            if not r:
+            if r is None:
                 return JsonResponse({'error': 'Service Unavailable'}, status=503)
             return JsonResponse(r.json(), status=r.status_code)
         except json.JSONDecodeError:
@@ -142,7 +142,7 @@ class StaffCategoryModifyView(StaffRequiredMixin, BaseProxyView):
 
     def delete(self, request, pk):
         r = self.proxy_request(request, f"products/categories/{pk}/", method="DELETE")
-        if not r:
+        if r is None:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         if r.status_code in (200, 204):
             return JsonResponse({'status': 'deleted'})
@@ -161,7 +161,7 @@ class StaffProductModifyView(StaffRequiredMixin, BaseProxyView):
             if 'category' in data and 'category_id' not in data: data['category_id'] = data['category']
             
             r = self.proxy_request(request, f"products/{pk}/", method="PUT", payload=data)
-            if not r:
+            if r is None:
                 return JsonResponse({'error': 'Service Unavailable'}, status=503)
             return JsonResponse(r.json(), status=r.status_code)
         except json.JSONDecodeError:
@@ -169,7 +169,7 @@ class StaffProductModifyView(StaffRequiredMixin, BaseProxyView):
 
     def delete(self, request, pk):
         r = self.proxy_request(request, f"products/{pk}/", method="DELETE")
-        if not r:
+        if r is None:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         if r.status_code in (200, 204):
             return JsonResponse({'status': 'deleted'})
@@ -182,7 +182,7 @@ class StaffVoucherListCreateView(StaffRequiredMixin, BaseProxyView):
 
     def get(self, request):
         r = self.proxy_request(request, "staff/vouchers/", method="GET")
-        if not r:
+        if r is None:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         return JsonResponse(r.json(), safe=False, status=r.status_code)
 
@@ -190,7 +190,7 @@ class StaffVoucherListCreateView(StaffRequiredMixin, BaseProxyView):
         try:
             data = json.loads(request.body)
             r = self.proxy_request(request, "staff/vouchers/", method="POST", payload=data)
-            if not r:
+            if r is None:
                 return JsonResponse({'error': 'Service Unavailable'}, status=503)
             return JsonResponse(r.json(), status=r.status_code)
         except json.JSONDecodeError:
@@ -203,7 +203,7 @@ class StaffVoucherDetailView(StaffRequiredMixin, BaseProxyView):
 
     def get(self, request, pk):
         r = self.proxy_request(request, f"staff/vouchers/{pk}/", method="GET")
-        if not r:
+        if r is None:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         return JsonResponse(r.json(), status=r.status_code)
 
@@ -211,7 +211,7 @@ class StaffVoucherDetailView(StaffRequiredMixin, BaseProxyView):
         try:
             data = json.loads(request.body)
             r = self.proxy_request(request, f"staff/vouchers/{pk}/", method="PUT", payload=data)
-            if not r:
+            if r is None:
                 return JsonResponse({'error': 'Service Unavailable'}, status=503)
             return JsonResponse(r.json(), status=r.status_code)
         except json.JSONDecodeError:
@@ -219,7 +219,7 @@ class StaffVoucherDetailView(StaffRequiredMixin, BaseProxyView):
 
     def delete(self, request, pk):
         r = self.proxy_request(request, f"staff/vouchers/{pk}/", method="DELETE")
-        if not r:
+        if r is None:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         if r.status_code == 204:
             return JsonResponse({'status': 'deleted'}, status=200)
@@ -234,7 +234,7 @@ class StaffOrderManageView(StaffRequiredMixin, BaseProxyView):
             r = self.proxy_request(request, f"orders/{pk}/", method="GET")
         else:
             r = self.proxy_request(request, "orders/", method="GET")
-        if not r:
+        if r is None:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         return JsonResponse(r.json(), safe=False, status=r.status_code)
 
@@ -243,7 +243,7 @@ class StaffOrderManageView(StaffRequiredMixin, BaseProxyView):
             data = json.loads(request.body)
             # Backend service still used different endpoint structure, so we keep the proxy paths
             r = self.proxy_request(request, f"orders/{pk}/status/", method="PATCH", payload=data)
-            if not r:
+            if r is None:
                 return JsonResponse({'error': 'Service Unavailable'}, status=503)
             return JsonResponse(r.json(), status=r.status_code)
         except json.JSONDecodeError:
@@ -251,7 +251,7 @@ class StaffOrderManageView(StaffRequiredMixin, BaseProxyView):
 
     def delete(self, request, pk):
         r = self.proxy_request(request, f"orders/{pk}/delete/", method="DELETE")
-        if not r:
+        if r is None:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         if r.status_code in (200, 204):
             return JsonResponse({'status': 'deleted'})

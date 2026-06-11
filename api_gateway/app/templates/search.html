@@ -96,42 +96,39 @@
                     {% if q %}<p class="text-slate-500 mt-1">Found products for "<span
                             class="font-bold text-slate-800">{{ q }}</span>"</p>{% endif %}
                 </div>
-                <div class="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{{ books|length }}
-                    items</div>
+                <div class="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{{ products|length }} items</div>
             </div>
 
             <!-- Product Grid -->
             <div class="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-                {% for book in books %}
+                {% for product in products %}
                 <article
                     class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col h-full relative">
-                    <a href="/products/{{ book.id }}/"
+                    <a href="/products/{{ product.id }}/"
                         class="aspect-square w-full bg-slate-100 rounded-xl mb-4 overflow-hidden relative group-hover:opacity-90 transition-opacity">
-                        <img src="{{ book.image_url }}" alt="{{ book.name }}"
+                        <img src="{{ product.image_url }}" alt="{{ product.name }}"
                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                         
                         <!-- Wishlist heart -->
-                        <button onclick="event.preventDefault(); toggleWishlist({{ book.id }}, this)" 
+                        <button onclick="event.preventDefault(); toggleWishlist({{ product.id }}, this)" 
                                 class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
                             <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
                         </button>
                         <div
                             class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
-                            <button onclick="event.preventDefault(); addToCart({{ book.id }})"
+                            <button onclick="event.preventDefault(); addToCart({{ product.id }})"
                                 class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-xs">Add
                                 to Cart</button>
                         </div>
                     </a>
                     <div class="flex-1 flex flex-col">
-                        {% if book.category_name %}<span
-                            class="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider rounded mb-2">{{
-                            book.category_name }}</span>{% endif %}
-                        <a href="/products/{{ book.id }}/"
-                            class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">{{
-                            book.name }}</a>
+                        {% if product.category_name %}<span
+                            class="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider rounded mb-2">{{ product.category_name }}</span>{% endif %}
+                        <a href="/products/{{ product.id }}/"
+                            class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">{{ product.name }}</a>
                         <div class="mt-auto flex items-center justify-between">
-                            <p class="text-lg font-black text-slate-900">${{ book.price }}</p>
-                            <button onclick="addToCart({{ book.id }})"
+                            <p class="text-lg font-black text-slate-900">${{ product.price }}</p>
+                            <button onclick="addToCart({{ product.id }})"
                                 class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100"><svg
                                     class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -143,7 +140,7 @@
                 {% endfor %}
             </div>
 
-            {% if not books %}
+            {% if not products %}
             <div class="py-20 text-center bg-white rounded-2xl border border-slate-200 mt-6">
                 <div
                     class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 text-slate-400 mb-4">

@@ -163,6 +163,39 @@
                         <h2 class="text-2xl font-heading font-bold text-blue-400">📦 Order Management</h2>
                         <button onclick="fetchOrders()" class="bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">🔄 Refresh</button>
                     </div>
+                    <!-- Order Filters -->
+                    <div class="px-8 py-4 border-b border-slate-700 bg-slate-800 flex flex-wrap gap-4 items-end">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Status</label>
+                            <select id="filter-status" class="bg-slate-700 text-white text-sm px-3 py-2 rounded-lg border border-slate-600 outline-none focus:border-blue-500">
+                                <option value="">All</option>
+                                <option value="pending">Pending</option>
+                                <option value="pending_confirmation">Pending Confirmation</option>
+                                <option value="processing">Processing</option>
+                                <option value="ready_for_pickup">Ready for Pickup</option>
+                                <option value="delivering">Delivering</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Start Date</label>
+                            <input type="date" id="filter-start-date" class="bg-slate-700 text-white text-sm px-3 py-2 rounded-lg border border-slate-600 outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">End Date</label>
+                            <input type="date" id="filter-end-date" class="bg-slate-700 text-white text-sm px-3 py-2 rounded-lg border border-slate-600 outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Sort Price</label>
+                            <select id="filter-sort-price" class="bg-slate-700 text-white text-sm px-3 py-2 rounded-lg border border-slate-600 outline-none focus:border-blue-500">
+                                <option value="">Default</option>
+                                <option value="desc">High to Low</option>
+                                <option value="asc">Low to High</option>
+                            </select>
+                        </div>
+                        <button onclick="currentOrderPage = 1; fetchOrders()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-500/30">Filter</button>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="w-full">
                             <thead>
@@ -178,6 +211,9 @@
                                 <!-- JS injected -->
                             </tbody>
                         </table>
+                    </div>
+                    <div id="orders-pagination" class="px-8 py-4 border-t border-slate-700 bg-slate-800/50 flex justify-between items-center text-sm">
+                        <!-- JS injected -->
                     </div>
                 </section>
             </div>
@@ -359,9 +395,33 @@
         }
 
         // --- ORDERS LOGIC ---
-        async function fetchOrders() {
+        let currentOrderPage = 1;
+
+        const statusColorMap = {
+            'pending': 'bg-slate-600 text-slate-100',
+            'pending_confirmation': 'bg-blue-600 text-blue-50',
+            'processing': 'bg-amber-500 text-amber-950',
+            'ready_for_pickup': 'bg-indigo-600 text-indigo-50',
+            'delivering': 'bg-orange-500 text-orange-950',
+            'completed': 'bg-green-600 text-green-50',
+            'cancelled': 'bg-red-600 text-red-50'
+        };
+
+        async function fetchOrders(page = null) {
+            if (page) currentOrderPage = page;
             try {
-                const res = await fetch('/api/staff/orders/');
+                const status = document.getElementById('filter-status').value;
+                const startDate = document.getElementById('filter-start-date').value;
+                const endDate = document.getElementById('filter-end-date').value;
+                const sortPrice = document.getElementById('filter-sort-price').value;
+
+                let url = `/api/staff/orders/?page=${currentOrderPage}`;
+                if (status) url += `&status=${status}`;
+                if (startDate) url += `&start_date=${startDate}`;
+                if (endDate) url += `&end_date=${endDate}`;
+                if (sortPrice) url += `&sort_price=${sortPrice}`;
+
+                const res = await fetch(url);
                 const data = await res.json();
                 const orders = data.results || data; // handle paginated or unpaginated
                 const tbody = document.getElementById('orders-tbody');
@@ -374,9 +434,10 @@
                 tbody.innerHTML = orders.map(o => {
                     const date = new Date(o.created_at).toLocaleDateString();
                     
-                    let selectHtml = `<select onchange="updateOrderStatus(${o.id}, this.value)" class="bg-slate-700 text-xs font-bold px-3 py-2 rounded-lg border border-slate-600 outline-none focus:border-blue-500">`;
+                    const selectColor = statusColorMap[o.status] || 'bg-slate-700 text-white';
+                    let selectHtml = `<select onchange="updateOrderStatus(${o.id}, this.value)" class="${selectColor} text-xs font-bold px-3 py-2 rounded-lg border border-transparent hover:border-slate-500 outline-none focus:ring-2 focus:ring-blue-500 transition-colors">`;
                     statusOptions.forEach(s => {
-                        selectHtml += `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s.toUpperCase().replace(/_/g, ' ')}</option>`;
+                        selectHtml += `<option value="${s}" ${s === o.status ? 'selected' : ''} class="bg-slate-800 text-white">${s.toUpperCase().replace(/_/g, ' ')}</option>`;
                     });
                     selectHtml += `</select>`;
 
@@ -393,6 +454,22 @@
                         </td>
                     </tr>
                 `}).join('');
+
+                // Render pagination if available
+                const pagContainer = document.getElementById('orders-pagination');
+                if (data.total !== undefined && data.page_size !== undefined) {
+                    const totalPages = Math.ceil(data.total / data.page_size) || 1;
+                    pagContainer.innerHTML = `
+                        <span class="text-slate-400">Showing page ${data.page} of ${totalPages} (${data.total} total orders)</span>
+                        <div class="flex gap-2">
+                            <button onclick="fetchOrders(${data.page > 1 ? data.page - 1 : 1})" ${data.page === 1 ? 'disabled class="px-4 py-2 bg-slate-700 text-slate-500 rounded-lg cursor-not-allowed"' : 'class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"'}>Previous</button>
+                            <button onclick="fetchOrders(${data.page < totalPages ? data.page + 1 : totalPages})" ${data.page === totalPages ? 'disabled class="px-4 py-2 bg-slate-700 text-slate-500 rounded-lg cursor-not-allowed"' : 'class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"'}>Next</button>
+                        </div>
+                    `;
+                } else {
+                    pagContainer.innerHTML = '';
+                }
+
             } catch(e) { console.error(e); }
         }
 
@@ -403,8 +480,9 @@
                 body: JSON.stringify({status: newStatus})
             });
             if(!res.ok) {
-                alert('Failed to update order status');
-                fetchOrders(); // revert
+                const data = await res.json().catch(() => ({}));
+                alert(data.error || 'Failed to update order status');
+                fetchOrders(); // revert UI dropdown to current actual status
             }
         }
     </script>

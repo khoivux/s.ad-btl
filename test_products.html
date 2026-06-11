@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroStore — All Products</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#4F46E5', secondary: '#F59E0B', accent: '#E11D48' },
+                    fontFamily: { sans: ['Nunito Sans', 'sans-serif'], heading: ['Rubik', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;500;600;700&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen">
+    <!-- Header -->
+<header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <a href="/products/" class="text-2xl font-bold font-heading text-indigo-600 flex items-center gap-2">
+            <span class="text-3xl">🛍️</span> MicroStore
+        </a>
+        
+        <!-- Global Search Bar -->
+        <div class="hidden md:block flex-1 max-w-xl mx-8">
+            <form action="/search/" method="GET" class="relative group" id="main-search-form">
+                <input type="text" name="q" id="search-input" autocomplete="off" value="" placeholder="Search products (laptop, shoes...)" 
+                    class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 transition-shadow">
+                <svg class="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+
+                <!-- Search Suggestions Dropdown -->
+                <div id="search-suggestions" class="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 hidden z-[100] overflow-hidden">
+                    <div class="px-4 py-2 text-xs font-semibold text-slate-400 border-b border-slate-50">AI Recommended Suggestions</div>
+                    <div id="suggestions-list"></div>
+                </div>
+            </form>
+        </div>
+
+        <nav class="flex items-center gap-4 sm:gap-6">
+            
+            <a href="/login/" class="text-sm font-bold text-slate-600 hover:text-indigo-600 transition-colors">Sign In</a>
+            <a href="/register/" class="text-sm font-bold bg-indigo-600 text-white px-4 py-2 rounded-full hover:bg-indigo-700 transition-colors shadow-md">Register</a>
+            
+        </nav>
+    </div>
+</header>
+
+<!-- Mobile Search (Visible only on small screens) -->
+<div class="md:hidden bg-white p-4 border-b border-slate-200">
+    <form action="/search/" method="GET" class="relative">
+        <input type="text" name="q" value="" placeholder="Search products..." 
+            class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50">
+        <svg class="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+    </form>
+</div>
+
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById('search-input');
+        const suggestionsBox = document.getElementById('search-suggestions');
+        const suggestionsList = document.getElementById('suggestions-list');
+        const customerId = localStorage.getItem('customer_id') || 1;
+        let debounceTimer;
+
+        const fetchSuggestions = async () => {
+            const query = searchInput.value.trim();
+            try {
+                const res = await fetch(`/api/recommender/suggest/?q=${encodeURIComponent(query)}&customer_id=${customerId}`);
+                if (!res.ok) return;
+                const items = await res.json();
+
+                if (items.length > 0) {
+                    suggestionsList.innerHTML = items.map(item => `
+                        <a href="/products/${item.id}/" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group/item">
+                            <div class="w-10 h-10 rounded bg-slate-100 flex-shrink-0">
+                                <img src="${item.image_url || 'https://via.placeholder.com/100'}" class="w-full h-full object-cover rounded">
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-semibold text-slate-800 truncate group-hover/item:text-indigo-600">${item.title}</div>
+                                <div class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                    <span class="text-indigo-500">🧠 AI Match ${Math.round(item.final_score * 100)}%</span>
+                                    ${item.social_proof ? `<span class="bg-indigo-50 text-indigo-600 px-1.5 rounded-full">${item.social_proof}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="text-sm font-bold text-slate-900">$${item.price}</div>
+                        </a>
+                    `).join('');
+                    suggestionsBox.classList.remove('hidden');
+                } else {
+                    suggestionsList.innerHTML = '<div class="px-4 py-4 text-sm text-slate-500 text-center italic">No personalized matches found</div>';
+                    suggestionsBox.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error("Suggestion fetch failed", err);
+            }
+        };
+
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(fetchSuggestions, 300);
+        });
+
+        // Trigger on focus/click immediately
+        searchInput.addEventListener('focus', fetchSuggestions);
+        searchInput.addEventListener('click', fetchSuggestions);
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!document.getElementById('main-search-form').contains(e.target)) {
+                suggestionsBox.classList.add('hidden');
+            }
+        });
+
+    });
+</script>
+
+
+    <!-- Hero Banner -->
+    <section class="bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 text-white py-16 overflow-hidden relative">
+        <div class="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <h1 class="text-4xl sm:text-5xl md:text-6xl font-black font-heading tracking-tight mb-4">
+                Explore <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500">All Products</span>
+            </h1>
+            <p class="text-lg text-indigo-200 max-w-2xl mx-auto mb-8 font-medium">
+                From laptops to lipstick — find everything in one place.
+            </p>
+            <a href="/search/" class="inline-block bg-white text-indigo-900 font-bold py-3 px-8 rounded-full shadow-lg hover:bg-indigo-50 transition-colors hover:-translate-y-0.5 transform duration-200">
+                Search Products
+            </a>
+        </div>
+    </section>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+        <!-- Category Filter Bar -->
+        
+        <div class="mb-8 overflow-x-auto pb-2">
+            <div class="flex gap-2 min-w-max">
+                <a href="/products/"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all bg-indigo-600 text-white shadow-md">
+                    🛍 All
+                </a>
+                
+                <a href="/products/?category_id=1"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Book
+                </a>
+                
+                <a href="/products/?category_id=2"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Laptop
+                </a>
+                
+                <a href="/products/?category_id=3"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Mobile
+                </a>
+                
+                <a href="/products/?category_id=4"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Shoes
+                </a>
+                
+                <a href="/products/?category_id=5"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Fashion
+                </a>
+                
+                <a href="/products/?category_id=6"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Watch
+                </a>
+                
+                <a href="/products/?category_id=7"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Cosmetics
+                </a>
+                
+                <a href="/products/?category_id=8"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Toys
+                </a>
+                
+                <a href="/products/?category_id=9"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Furniture
+                </a>
+                
+                <a href="/products/?category_id=10"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Home Appliances
+                </a>
+                
+                <a href="/products/?category_id=11"
+                   class="px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap bg-white text-slate-600 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600">
+                    Food
+                </a>
+                
+            </div>
+        </div>
+        
+
+        <!-- Results count -->
+        <div class="flex items-center justify-between mb-6">
+            <p class="text-sm text-slate-500">Showing <span class="font-bold text-slate-800">12</span> of <span class="font-bold text-slate-800"></span> products</p>
+        </div>
+
+        
+
+        <!-- Featured Products Heading -->
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-slate-800 font-heading">
+                Featured Products
+            </h2>
+            <a href="/search/" class="text-indigo-600 font-medium hover:text-indigo-800 flex items-center gap-1 group">
+                View All <span class="transform group-hover:translate-x-1 transition-transform">→</span>
+            </a>
+        </div>
+
+        <!-- Product Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/118/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Atomic,Habits,book" alt="Atomic Habits" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(118, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(118)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/118/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Atomic Habits</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$7.01</p>
+                        <button onclick="addToCart(118)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/220/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Tomato,Ketchup,20oz,food" alt="Tomato Ketchup 20oz" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(220, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(220)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/220/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Tomato Ketchup 20oz</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$10.78</p>
+                        <button onclick="addToCart(220)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/211/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Chocolate,Sandwich,Cookies,food" alt="Chocolate Sandwich Cookies" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(211, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(211)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/211/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Chocolate Sandwich Cookies</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$11.46</p>
+                        <button onclick="addToCart(211)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/116/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Harry,Potter,book" alt="Harry Potter" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(116, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(116)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/116/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Harry Potter</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$12.73</p>
+                        <button onclick="addToCart(116)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/215/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Corn,Flakes,Cereal,food" alt="Corn Flakes Cereal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(215, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(215)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/215/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Corn Flakes Cereal</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$15.69</p>
+                        <button onclick="addToCart(215)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/113/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?1984,book" alt="1984" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(113, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(113)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/113/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">1984</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$15.83</p>
+                        <button onclick="addToCart(113)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/218/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Nacho,Cheese,Chips,food" alt="Nacho Cheese Chips" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(218, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(218)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/218/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Nacho Cheese Chips</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$20.81</p>
+                        <button onclick="addToCart(218)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/184/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Elite,2.0,Commander,toys" alt="Elite 2.0 Commander" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(184, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(184)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/184/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Elite 2.0 Commander</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$20.92</p>
+                        <button onclick="addToCart(184)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/214/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Hazelnut,Spread,food" alt="Hazelnut Spread" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(214, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(214)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/214/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Hazelnut Spread</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$23.63</p>
+                        <button onclick="addToCart(214)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/186/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Fun,Factory,Set,toys" alt="Fun Factory Set" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(186, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(186)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/186/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Fun Factory Set</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$23.96</p>
+                        <button onclick="addToCart(186)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/112/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Dune,book" alt="Dune" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(112, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(112)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/112/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Dune</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$24.17</p>
+                        <button onclick="addToCart(112)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+            <article class="group bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 flex flex-col relative">
+                <a href="/products/172/" class="aspect-square w-full bg-slate-100 rounded-xl mb-3 overflow-hidden relative group-hover:opacity-90 transition-opacity">
+                    <img src="https://source.unsplash.com/random/400x400/?Advanced,Night,Repair,cosmetics" alt="Advanced Night Repair" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Wishlist heart for grid items -->
+                    <button onclick="event.preventDefault(); toggleWishlist(172, this)" 
+                            class="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors z-20 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 duration-300">
+                        <svg class="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </button>
+
+                    <!-- Quick Add Overlay -->
+                    <div class="absolute inset-x-0 bottom-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0 duration-300">
+                        <button onclick="event.preventDefault(); addToCart(172)"
+                            class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 shadow-lg flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Add to Cart
+                        </button>
+                    </div>
+                </a>
+
+                <div class="flex-1 flex flex-col">
+                    
+                    <a href="/products/172/" class="text-sm font-bold text-slate-800 leading-snug mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">Advanced Night Repair</a>
+                    <div class="mt-auto flex items-center justify-between">
+                        <p class="text-lg font-black text-slate-900">$26.15</p>
+                        <button onclick="addToCart(172)" class="md:hidden bg-slate-100 p-2 rounded-full text-indigo-600 hover:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            
+        </div>
+
+        <!-- Pagination -->
+        
+        <div class="mt-12 flex justify-center items-center gap-4">
+            
+            <span class="text-sm font-black text-slate-400 bg-slate-100 px-4 py-2 rounded-lg tracking-widest uppercase">
+                Page 1 / 10
+            </span>
+            
+            <a href="?page=2"
+               class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-200 flex items-center gap-2">
+                Next
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+            
+        </div>
+        
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 mt-12 py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm">
+            &copy; 2026 MicroStore. Built with microservices —  products across 11 categories.
+        </div>
+    </footer>
+
+    <script>
+        async function addToCart(productId) {
+            try {
+                const response = await fetch(`/api/carts/items/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: productId, quantity: 1 })
+                });
+                if (response.status === 401) { window.location.href = '/login/?next=/products/'; return; }
+                if (response.ok) {
+                    const toast = document.createElement('div');
+                    toast.className = 'fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl translate-y-10 opacity-0 transition-all duration-300 z-50 flex items-center gap-3';
+                    toast.innerHTML = '<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Added to cart!';
+                    document.body.appendChild(toast);
+                    requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
+                    setTimeout(() => { toast.classList.add('translate-y-10', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3000);
+                } else {
+                    const data = await response.json();
+                    alert(`Could not add to cart: ${data.error || 'Error'}`);
+                }
+            } catch (error) { console.error('Cart error:', error); }
+        }
+
+        async function toggleWishlist(productId, btn) {
+            try {
+                const res = await fetch(`/api/wishlist/toggle/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: productId, action: 'add' })
+                });
+                if (res.status === 401) { window.location.href = `/login/?next=/products/`; return; }
+                const data = await res.json();
+                if (res.ok) {
+                    if (data.status === 'added') {
+                        btn.classList.add('text-rose-500');
+                        btn.querySelector('svg').classList.add('fill-current');
+                        showToast('Added to wishlist!');
+                    } else {
+                        showToast('Already in wishlist');
+                    }
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl translate-y-10 opacity-0 transition-all duration-300 z-50 flex items-center gap-3';
+            toast.innerHTML = `<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> ${msg}`;
+            document.body.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
+            setTimeout(() => { toast.classList.add('translate-y-10', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+    </script>
+</body>
+</html>

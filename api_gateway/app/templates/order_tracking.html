@@ -59,33 +59,36 @@
             <div class="absolute left-4 top-0 bottom-0 w-1 bg-slate-100 ml-[2px]"></div>
 
             <div class="space-y-12">
-                {% for log in order.status_history %}
-                <div class="relative flex items-center gap-6">
+                {% for step in timeline %}
+                <div class="relative flex items-center gap-6 {% if not step.is_completed %}opacity-40{% endif %}">
                     <div class="z-10 w-6 h-6 rounded-full border-4 border-white shadow flex items-center justify-center 
-                        {% if log.status == 'completed' %}bg-green-500
-                        {% elif log.status == 'cancelled' %}bg-red-500
-                        {% else %}bg-indigo-600{% endif %}">
+                        {% if step.is_cancelled %}bg-red-500
+                        {% elif step.is_completed and forloop.last and not is_cancelled %}bg-green-500
+                        {% elif step.is_completed %}bg-indigo-600
+                        {% else %}bg-slate-300{% endif %}">
                         <div class="w-2 h-2 bg-white rounded-full"></div>
                     </div>
                     <div>
-                        <p class="font-bold text-slate-800 text-lg">
-                            {% if log.status == 'pending' or log.status == 'pending_confirmation' %}Order Placed
-                            {% elif log.status == 'processing' %}Processing Started
-                            {% elif log.status == 'ready_for_pickup' %}Packed & Ready for Shipping
-                            {% elif log.status == 'delivering' %}Out for Delivery
-                            {% elif log.status == 'completed' %}Successfully Delivered
-                            {% elif log.status == 'cancelled' %}Order Cancelled
-                            {% else %}{{ log.status|title }}{% endif %}
+                        <p class="font-bold text-lg {% if step.is_completed %}text-slate-800{% else %}text-slate-500{% endif %}">
+                            {{ step.label }}
                         </p>
-                        <p class="text-slate-500 text-sm">{{ log.notes|default:"Update recorded in system." }}</p>
+                        <p class="text-slate-500 text-sm">
+                            {% if step.is_completed %}
+                                {{ step.notes }}
+                            {% else %}
+                                Pending...
+                            {% endif %}
+                        </p>
+                        {% if step.time %}
                         <p class="text-xs text-indigo-500 font-bold mt-1">
-                            {{ log.created_at|slice:":10" }} {{ log.created_at|slice:"11:16" }}
+                            {{ step.time|slice:":10" }} {{ step.time|slice:"11:16" }}
                         </p>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
 
-                {% if not order.status_history %}
+                {% if not timeline %}
                 <div class="text-center py-8 text-slate-400 font-bold italic">
                     No tracking data available yet.
                 </div>

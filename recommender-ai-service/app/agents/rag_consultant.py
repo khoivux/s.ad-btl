@@ -71,6 +71,32 @@ class ConsultantAgent:
             print(f"[AI-LOG] Failed LSTM or Graph retrieval: {e}")
             kb_context = "Hệ thống tri thức tạm thời gián đoạn."
 
+        # --- SEMANTIC VECTOR DB SEARCH (RAG) ---
+        rag_context = ""
+        try:
+            from ..ai_core.vector_db import vector_db
+            print(f"[AI-LOG] 🔍 Querying vector DB for query: {user_message}")
+            rag_results = vector_db.query(user_message, n_results=3)
+            
+            if rag_results and 'documents' in rag_results and rag_results['documents']:
+                matched_docs = []
+                for doc, meta, dist in zip(
+                    rag_results['documents'][0], 
+                    rag_results['metadatas'][0], 
+                    rag_results['distances'][0]
+                ):
+                    print(f"[AI-LOG] RAG Match: {meta.get('source', meta.get('title', 'Unknown'))} | L2 Distance: {dist:.4f}")
+                    if dist < 0.85:
+                        matched_docs.append(doc)
+                
+                if matched_docs:
+                    rag_context = "\n\n".join(matched_docs)
+                    print(f"[AI-LOG] Found {len(matched_docs)} relevant RAG documents.")
+                else:
+                    print(f"[AI-LOG] No RAG documents below distance threshold.")
+        except Exception as e:
+            print(f"[AI-LOG] Failed Vector DB query: {e}")
+
         # 3. History
         history_text = ""
         if isinstance(chat_history_list, list):
@@ -80,6 +106,11 @@ class ConsultantAgent:
 
         # 4. Prompt
         print(f"[AI-LOG] Generating natural prompt for user {user_id}.")
+        
+        rag_section = ""
+        if rag_context:
+            rag_section = f"\nTÀI LIỆU HƯỚNG DẪN & CHÍNH SÁCH CỬA HÀNG:\n---\n{rag_context}\n---"
+
         system_prompt = f"""Bạn là một chuyên gia tư vấn sản phẩm tận tâm của cửa hàng MicroStore với hơn 20 năm kinh nghiệm thấu hiểu khách hàng.
 
 NHIỆM VỤ CỦA BẠN:
@@ -88,15 +119,16 @@ NHIỆM VỤ CỦA BẠN:
 3. PHONG CÁCH TƯ VẤN:
    - Hãy nói một cách tự nhiên nhất: 'Tôi vừa tìm thấy món này hay lắm...', 'Có 3 sản phẩm này tôi tin bạn sẽ rất thích...', 'Với khoảng $7, bạn có thể sở hữu ngay...'.
    - Giải thích lý do bằng cách DÙNG LỊCH SỬ KNOWLEDGE GRAPH (ví dụ: 'Thấy bạn vừa xem sản phẩm A, mình nghĩ sản phẩm B này rất hợp vì...').
+   - Sử dụng các tài liệu hướng dẫn và chính sách được cung cấp để trả lời các câu hỏi về chính sách, phí ship, bảo hành hoặc mẹo mua sắm của cửa hàng một cách chính xác.
    - Lời chào ngắn gọn (tối đa 1 câu). Không rườm rà.
 
 QUY TẮC PHỤC VỤ (BÍ MẬT):
-- Luôn ưu tiên 3 sản phẩm đầu trong danh sách 'AI RECOMMENDS' trừ khi khách yêu cầu số lượng K khác.
-- Chỉ tư vấn những sản phẩm có trong danh sách được cung cấp.
+- Luôn ưu tiên các sản phẩm đầu trong danh sách 'AI RECOMMENDS' trừ khi khách yêu cầu cụ thể hoặc đang hỏi về các chủ đề khác.
+- Chỉ tư vấn những sản phẩm có trong danh sách được cung cấp hoặc trả lời các thông tin chính sách từ tài liệu.
 
 DỮ LIỆU BỐI CẢNH (CHỈ DÙNG ĐỂ THẤU HIỂU, KHÔNG ĐƯỢC CHÉP LẠI):
 ---
-HỒ SƠ ĐỘC GIẢ: {persona}
+HỒ SƠ KHÁCH HÀNG: {persona}{rag_section}
 DANH SÁCH GỢI Ý & GRAPH:
 {kb_context}
 ---
