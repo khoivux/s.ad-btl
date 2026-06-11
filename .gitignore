@@ -75,3 +75,4 @@ scratch_check.py
 /recommender-ai-service/retailrocket-dataset/item_properties_part1.csv
 /recommender-ai-service/retailrocket-dataset/item_properties_part2.csv
 /recommender-ai-service/dataset2/*.csv
+/recommender-ai-service/retailrocket-dataset
