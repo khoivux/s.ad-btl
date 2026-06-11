@@ -69,3 +69,9 @@ behavior_dataset.csv
 scratch_check.py
 **/neo4j/data/
 **/neo4j/logs/
+/recommender-ai-service/retailrocket-dataset/analyze_stats.py
+/recommender-ai-service/retailrocket-dataset/category_tree.csv
+/recommender-ai-service/retailrocket-dataset/events.csv
+/recommender-ai-service/retailrocket-dataset/item_properties_part1.csv
+/recommender-ai-service/retailrocket-dataset/item_properties_part2.csv
+/recommender-ai-service/dataset2/*.csv
