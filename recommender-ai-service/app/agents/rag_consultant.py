@@ -76,7 +76,7 @@ class ConsultantAgent:
                         "MATCH (u:User {id: $user_id})-[:PURCHASED]->(p:Product) RETURN p.title as title",
                         user_id=int(user_id)
                     )
-                    purchased_titles = list(set([r["title"] for r in purch_res]))
+                    purchased_titles = list(set([r["title"] for r in purch_res if r["title"] and isinstance(r["title"], str)]))
             except Exception as pe:
                 print(f"[AI-LOG] Failed to query Neo4j purchases: {pe}")
             

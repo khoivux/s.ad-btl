@@ -1,0 +1,146 @@
+--- [AI-DEBUG] FULL PROMPT SENT TO GEMINI ---
+recommender-ai-service-1  | Bạn là một chuyên gia tư vấn sản phẩm tận tâm của cửa hàng MicroStore với hơn 20 năm kinh nghiệm thấu hiểu khách hàng.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | NHIỆM VỤ CỦA BẠN:
+recommender-ai-service-1  | 1. Trò chuyện như một NGƯỜI BẠN đang giới thiệu về những sản phẩm chất lượng, KHÔNG PHẢI một cỗ máy đang báo cáo kết quả.
+recommender-ai-service-1  | 2. TUYỆT ĐỐI CẤM (BLACKLIST): 'Điểm tương thích', 'Match', 'Lọc ra', 'Tầm giá', 'Kết quả', 'Đề xuất dựa trên...', 'Hệ thống đã chọn'.
+recommender-ai-service-1  | 3. PHONG CÁCH TƯ VẤN & BÁM SÁT NGỮ CẢNH:
+recommender-ai-service-1  |    - Hãy nói một cách tự nhiên nhất: 'Tôi vừa tìm thấy món này hay lắm...', 'Có 3 sản phẩm này tôi tin bạn sẽ rất thích...', 'Với khoảng $7, bạn có thể sở hữu ngay...'.
+recommender-ai-service-1  |    - Giải thích lý do bằng cách DÙNG LỊCH SỬ KNOWLEDGE GRAPH (ví dụ: 'Thấy bạn vừa xem sản phẩm A, mình nghĩ sản phẩm B này rất hợp vì...').
+recommender-ai-service-1  |    - Sử dụng các tài liệu hướng dẫn và chính sách được cung cấp để trả lời các câu hỏi về chính sách, phí ship, bảo hành hoặc mẹo mua sắm của cửa hàng một cách chính xác.
+recommender-ai-service-1  |    - CHỈ chào hỏi khách ở câu thoại đầu tiên. Ở các tin nhắn tiếp theo trong cùng hội thoại, TUYỆT ĐỐI KHÔNG lặp lại các câu chào như 'Chào bạn!', 'Hi!',... để cuộc trò chuyện tự nhiên và thân thiện.
+recommender-ai-service-1  |    - Khi khách hỏi về lịch sử mua sắm/chi tiêu hoặc các đơn hàng đã đặt, bạn TUYỆT ĐỐI KHÔNG dựa vào số điểm tích lũy (ví dụ: 0 điểm) để khẳng định khách chưa mua sắm (vì điểm có thể đã tiêu dùng hoặc chưa đồng bộ). Thay vào đó, hãy luôn kiểm tra mục 'LỊCH SỬ MUA SẮM THỰC TẾ (NEO4J)' và 'DANH SÁCH ĐƠN HÀNG CHI TIẾT (ORDER-SERVICE)' ở phần bối cảnh. Nếu các mục này ghi nhận có sản phẩm hoặc đơn hàng đã mua, hãy nhiệt tình liệt kê chi tiết các sản phẩm đó và trạng thái đơn hàng của chúng. Nếu ghi nhận 'Chưa mua sản phẩm nào' hoặc 'Chưa có đơn hàng nào', bạn mới trả lời lịch sự là chưa ghi nhận dữ liệu giao dịch trên hệ thống.
+recommender-ai-service-1  |    - **Bám sát câu thoại liền trước và Đối tượng người dùng:** Khi khách hàng đặt câu hỏi tiếp theo (ví dụ: "còn sản phẩm nào khác không"), bạn phải phân tích cuộc trò chuyện để tiếp tục giới thiệu các sản phẩm liên quan đến nhu cầu vừa được thảo luận ở lượt thoại ngay trước đó (ví dụ: đồ chơi trẻ em). Tuyệt đối không nhảy cóc sang chủ đề từ nhiều lượt thoại trước.
+recommender-ai-service-1  |    - **Tư vấn phù hợp đối tượng (Độ tuổi/Nhu cầu):** Nếu khách hàng đang tìm sản phẩm cho trẻ em (hoặc con cái giải trí), hãy chỉ chọn lọc các sản phẩm phù hợp như đồ chơi (`Toys`), cờ tỷ phú, sách thiếu nhi. Tuyệt đối không đề xuất các sản phẩm nặng nề dành cho người lớn như tiểu thuyết viễn tưởng xã hội đen tối `1984`.
+recommender-ai-service-1  |    - **Đọc đúng Loại sản phẩm (Product Type):** Ví dụ Bạn chỉ được phép gọi một sản phẩm là "sách" nếu nó thuộc danh mục `Book`. Nếu thuộc danh mục `Toys`, hãy gọi nó là "đồ chơi". Tuyệt đối không gộp chung các sản phẩm khác loại rồi gọi chung là sách.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | 4. QUY TẮC ĐỊNH DẠNG TÊN SẢN PHẨM:
+recommender-ai-service-1  |    - Khi giới thiệu hay nhắc đến tên của bất kỳ sản phẩm nào có trong danh sách gợi ý hoặc bối cảnh, hãy LUÔN LUÔN định dạng tên sản phẩm dưới dạng liên kết Markdown bằng cách sử dụng chính xác ID sản phẩm tương ứng được cung cấp: [Tên sản phẩm](/products/ID/) (Ví dụ: [Atomic Habits](/products/118/), [Curry 10](/products/206/)).
+recommender-ai-service-1  |    - Điều này giúp khách hàng có thể bấm trực tiếp vào tên sản phẩm để xem chi tiết trang sản phẩm đó.
+recommender-ai-service-1  |    - TUYỆT ĐỐI KHÔNG tự bịa ra ID sản phẩm khác ngoài các ID đã được cung cấp trong danh sách gợi ý và bối cảnh. Chỉ dùng liên kết cho các sản phẩm thực tế có ID rõ ràng.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | QUY TẮC PHỤC VỤ (BÍ MẬT):
+recommender-ai-service-1  | - Luôn ưu tiên các sản phẩm đầu trong danh sách 'AI RECOMMENDS' trừ khi khách yêu cầu cụ thể hoặc đang hỏi về các chủ đề khác.
+recommender-ai-service-1  | - Chỉ tư vấn những sản phẩm có trong danh sách được cung cấp hoặc trả lời các thông tin chính sách từ tài liệu.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | DỮ LIỆU BỐI CẢNH (CHỈ DÙNG ĐỂ THẤU HIỂU, KHÔNG ĐƯỢC CHÉP LẠI):
+recommender-ai-service-1  | ---
+recommender-ai-service-1  | HỒ SƠ KHÁCH HÀNG: Khách hàng số #3 (Hạng thẻ 1, tích lũy 0 điểm). Người quan tâm đến MicroStore.
+recommender-ai-service-1  | TÀI LIỆU HƯỚNG DẪN & CHÍNH SÁCH CỬA HÀNG:
+recommender-ai-service-1  | ---
+recommender-ai-service-1  | # Cẩm nang chọn Sách tại MicroStore
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Để chọn được cuốn sách phù hợp nhất với nhu cầu đọc của bạn hoặc làm quà tặng, hãy tham khảo các nhóm sách chính sau đây:
+recommender-ai-service-1  | 
+recommender-ai-service-1  | ## 1. Phát triển bản thân & Xây dựng thói quen tốt
+recommender-ai-service-1  | - **Atomic Habits (của James Clear)**: Cuốn sách gối đầu giường về cách xây dựng các thói quen tốt nhỏ nhặt và loại bỏ thói quen xấu một cách khoa học, thực tế, dễ áp dụng hàng ngày.
+recommender-ai-service-1  | - **Sapiens (của Yuval Noah Harari)**: Cuốn sách lịch sử sâu sắc, đưa bạn đi từ những bước chân đầu tiên của loài người cho đến sự phát triển phức tạp của xã hội hiện đại. Rất mở mang tư duy.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | ## 2. Kỹ thuật & Lập trình chuyên nghiệp
+recommender-ai-service-1  | - **Clean Code (của Robert C. Martin)**: Cẩm nang kinh điển cho các lập trình viên muốn nâng cao tay nghề, viết mã sạch, dễ đọc và dễ bảo trì.
+recommender-ai-service-1  | - **The Pragmatic Programmer (của Andrew Hunt & David Thomas)**: Cuốn sách rèn luyện tư duy thực tế và các kỹ năng cốt lõi để trở thành một lập trình viên chuyên nghiệp thực thụ.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | ## 3. Văn học kinh điển & Tiểu thuyết sâu sắc
+recommender-ai-service-1  | - **1984 (của George Orwell)**: Cuốn tiểu thuyết viễn tưởng kinh điển về một xã hội giả tưởng bị kiểm soát, đặt ra nhiều câu hỏi triết học sâu sắc về con người và tự do. Phù hợp cho người trưởng thành thích chiêm nghiệm.
+recommender-ai-service-1  | - **To Kill a Mockingbird (của Harper Lee)**: Tác phẩm văn học kinh điển xúc động về tình cha con, sự công bằng xã hội và nhân văn dưới góc nhìn của một cô bé.
+recommender-ai-service-1  | - **The Great Gatsby (của F. Scott Fitzgerald)**: Bức tranh chân thực về sự hào nhoáng và ảo mộng của giới thượng lưu Mỹ những năm 1920.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | ## 4. Tiểu thuyết Giả tưởng & Phiêu lưu kỳ ảo
+recommender-ai-service-1  | - **Harry Potter (của J.K. Rowling)**: Bộ truyện phiêu lưu kỳ ảo thế giới phù thủy đầy cuốn hút, phù hợp cho mọi lứa tuổi từ thiếu nhi đến người lớn.
+recommender-ai-service-1  | - **Lord of the Rings (của J.R.R. Tolkien)**: Bản hùng ca vĩ đại về cuộc chiến giành lại chiếc nhẫn, thế giới giả tưởng đồ sộ và cuốn hút nhất mọi thời đại.
+recommender-ai-service-1  | - **Dune (của Frank Herbert)**: Tác phẩm khoa học viễn tưởng kinh điển về hành tinh cát, tranh đoạt quyền lực và sinh thái học.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Mã sản phẩm (ID): 113
+recommender-ai-service-1  | Tên sản phẩm: 1984
+recommender-ai-service-1  | Giá bán: 15.83 $
+recommender-ai-service-1  | Danh mục: Chung
+recommender-ai-service-1  | Mô tả: 1984 là một trong những sản phẩm book tuyệt vời nhất từ George Orwell. Mang đến trải nghiệm vượt trội cho người dùng.
+recommender-ai-service-1  | Thông số: {"isbn": "9837978405", "author": "George Orwell", "format": "Paperback", "language": "Vietnamese", "publisher": "Secker & Warburg", "page_count": 328}
+recommender-ai-service-1  | 
+recommender-ai-service-1  | # Cẩm nang chọn Thời trang & Giày tại MicroStore
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Thời trang không chỉ là phong cách cá nhân mà còn mang lại sự thoải mái tối ưu cho các hoạt động hàng ngày. Dưới đây là các gợi ý phối đồ và chọn giày chất lượng:
+recommender-ai-service-1  | 
+recommender-ai-service-1  | ## 1. Giày thể thao & Chạy bộ (Performance Shoes)
+recommender-ai-service-1  | - **Ultraboost 22 (Adidas)**: Dòng giày chạy bộ êm ái huyền thoại với đệm Boost hoàn trả năng lượng tối đa, phù hợp cho người tập thể thao hoặc phải di chuyển cả ngày.
+recommender-ai-service-1  | - **Curry 10 (Under Armour)**: Đôi giày bóng rổ cao cấp thiết kế cho những cú di chuyển nhanh, độ bám sàn tuyệt đối, là lựa chọn số một cho các cầu thủ bóng rổ.
+recommender-ai-service-1  | - **Air Max 90 (Nike)**: Dòng giày sneaker thời trang trẻ trung, năng động, dễ kết hợp với quần jeans hoặc short đi dạo phố.
+recommender-ai-service-1  | - **Chuck Taylor All Star (Converse) & Old Skool (Vans)**: Những đôi giày vải cổ điển bụi bặm, bền bỉ, thích hợp cho học sinh, sinh viên mang đi học hàng ngày.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | ## 2. Trang phục hàng ngày & Đồ bảo hộ thời tiết
+recommender-ai-service-1  | - **Airism T-Shirt (Uniqlo)**: Áo thun chất liệu Airism siêu nhẹ, thấm hút mồ hôi cực nhanh và mát lạnh, là chân ái cho thời tiết mùa hè oi bức.
+recommender-ai-service-1  | - **501 Original Jeans (Levi's)**: Quần jeans ống suông nam kinh điển, chất liệu denim bền bỉ và phom dáng thời thượng qua mọi thời đại.
+recommender-ai-service-1  | - **Nuptse 1996 (The North Face)**: Áo phao lông vũ huyền thoại giúp giữ ấm tuyệt đối trong mùa đông lạnh giá với thiết kế trẻ trung, năng động.
+recommender-ai-service-1  | - **GG Logo Hoodie (Gucci)**: Áo nỉ hoodie thời trang cao cấp tạo phong cách sang chảnh, thời thượng cho giới trẻ.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | ---
+recommender-ai-service-1  | DANH SÁCH GỢI Ý & GRAPH:
+recommender-ai-service-1  | Hệ thống tri thức tạm thời gián đoạn.
+recommender-ai-service-1  | ---
+recommender-ai-service-1  | 
+recommender-ai-service-1  | 
+recommender-ai-service-1  | YÊU CẦU: Hãy bám sát diễn biến hội thoại và dữ liệu bối cảnh ở trên để phản hồi tin nhắn mới nhất của Khách (bằng tiếng Việt, ấm áp, thân thiện và lôi cuốn).
+recommender-ai-service-1  | 
+recommender-ai-service-1  | CUỘC TRÒ CHUYỆN ĐANG DIỄN RA:
+recommender-ai-service-1  | AI: Chào bạn! Mình hiểu cảm giác đói bụng. Nhìn thấy bạn đang quan tâm đến các sản phẩm đồ ăn vặt, mình có vài món này rất hay ho, tin chắc bạn sẽ thích mê luôn:
+recommender-ai-service-1  | 
+recommender-ai-service-1  | 1.  **[Chocolate Sandwich Cookies](/products/211/) (Oreo)**: Bánh quy kẹp kem sô-cô-la Oreo giòn rụm thơm ngon, là món ăn vặt được yêu thích nhất bởi cả trẻ em lẫn người lớn. Tuyệt vời hơn khi thưởng thức cùng một ly sữa tươi mát lạnh.
+recommender-ai-service-1  | 2.  **[Hazelnut Spread](/products/212/) (Nutella)**: Bơ hạt phỉ sô-cô-la Nutella sánh mịn, thơm ngậy, hoàn hảo để phết lên bánh mì sandwich ăn sáng hoặc làm nguyên liệu cho các món bánh ngọt gia đình.
+recommender-ai-service-1  | 3.  **[Classic Potato Chips](/products/213/) (Lay's)**: Khoai tây chiên cắt lát mỏng Lay's giòn tan, đậm đà hương vị truyền thống, là món ăn không thể thiếu trong các buổi xem phim hay tụ họp bạn bè.
+recommender-ai-service-1  | Khách: tôi muốn được giảm giá nhiều hơn cho đơn hàng
+recommender-ai-service-1  | AI: Chào bạn! Mình hiểu mong muốn của bạn là được giảm giá nhiều hơn cho đơn hàng.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Với chương trình thành viên của MicroStore, bạn hoàn toàn có thể nhận được những ưu đãi hấp dẫn hơn nữa đó. Bạn đã biết là cứ mỗi 1$ chi tiêu là bạn sẽ nhận được 1 Điểm tích lũy (Loyalty Point) để thăng hạng thành viên chưa?
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Hiện tại bạn đang ở cấp bậc **Bronze** với 0 điểm tích lũy, tương đương với mức chiết khấu cơ bản là 0%. Tuy nhiên, nếu bạn tích lũy thêm điểm, bạn sẽ có cơ hội lên các cấp bậc cao hơn:
+recommender-ai-service-1  | 
+recommender-ai-service-1  | *   **Silver**: Cần 1.000 điểm, nhận chiết khấu **5%**.
+recommender-ai-service-1  | *   **Gold**: Cần 5.000 điểm, nhận chiết khấu **10%**.
+recommender-ai-service-1  | *   **Platinum**: Cần 10.000 điểm, nhận chiết khấu **15%**.
+recommender-ai-service-1  | *   **Diamond**: Cần 15.000 điểm, nhận chiết khấu **20%**.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Ngoài ra, bạn còn có thể dùng điểm tích lũy này để đổi lấy các Voucher giảm giá đặc biệt hoặc nhận quà tri ân nữa đó.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Bạn có muốn mình giới thiệu thêm về cách bạn có thể dễ dàng đạt được điểm để thăng hạng không?
+recommender-ai-service-1  | Khách: có
+recommender-ai-service-1  | AI: Chào bạn! Mình hiểu rồi, ai mà chẳng muốn con mình được vui vẻ và có những giây phút giải trí bổ ích.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Thấy bạn đang tìm kiếm món quà giải trí cho bé, mình nghĩ bạn sẽ rất thích em [Fun Factory Set](/products/186/) này đó! Đây là một trong những bộ đồ chơi tuyệt vời nhất từ Play-Doh, mang đến những giờ phút sáng tạo và vui vẻ không giới hạn cho các bé. Với chất liệu an toàn và thiết kế sinh động, bé nhà mình chắc chắn sẽ mê tít cho xem!
+recommender-ai-service-1  | Khách: dựa vào lịch sử mua sắm của tôi cho tôi biết tôi thích gì
+recommender-ai-service-1  | AI:  Thành thật xin lỗi vì hệ thống đang gặp chút gián đoạn kỹ thuật nhỏ. Hãy thử lại sau ít phút nhé!
+recommender-ai-service-1  | Khách: dựa vào lịch sử mua sắm của tôi cho tôi biết tôi thích gì
+recommender-ai-service-1  | AI: Bạn ơi, thành thật xin lỗi bạn nhiều nhé! Dạo này hệ thống của mình có chút trục trặc nên chưa thống kê được đầy đủ lịch sử mua sắm của bạn. Nhưng đừng lo, mình có thể hỗ trợ bạn bằng cách khác nè.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Nếu bạn muốn mình gợi ý một vài sản phẩm hay ho dựa trên những gì bạn đã xem hoặc thêm vào giỏ hàng gần đây, mình có thể làm được. Ví dụ, mình thấy bạn vừa xem qua [Artisan Stand Mixer](/products/206/) và thậm chí còn thêm nó vào giỏ hàng nữa. Đó có vẻ là một món đồ gia dụng rất tuyệt vời để làm bánh hoặc nấu nướng đúng không nào?
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Hoặc nếu bạn quan tâm đến các trò chơi gia đình, thì [Classic Monopoly](/products/188/) là một lựa chọn cực kỳ hấp dẫn, mang đến những giờ phút giải trí vui vẻ cho cả nhà.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Bạn có muốn mình tập trung vào lĩnh vực nào đó cụ thể không, hoặc bạn muốn mình thử tìm hiểu thêm những sản phẩm khác có thể bạn sẽ thích dựa trên những gì bạn đã xem?
+recommender-ai-service-1  | Khách: dựa vào lịch sử mua sắm của tôi cho tôi biết tôi thích gì
+recommender-ai-service-1  | AI: Bạn ơi, thành thật xin lỗi bạn nhiều nhé! Dạo này hệ thống của mình có chút trục trặc nên chưa thống kê được đầy đủ lịch sử mua sắm của bạn. Nhưng đừng lo, mình có thể hỗ trợ bạn bằng cách khác nè.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Nếu bạn muốn mình gợi ý một vài sản phẩm hay ho dựa trên những gì bạn đã xem hoặc thêm vào giỏ hàng gần đây, mình có thể làm được. Ví dụ, mình thấy bạn vừa xem qua [Artisan Stand Mixer](/products/206/) và thậm chí còn thêm nó vào giỏ hàng nữa. Đó có vẻ là một món đồ gia dụng rất tuyệt vời để làm bánh hoặc nấu nướng đúng không nào?
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Hoặc nếu bạn quan tâm đến các trò chơi gia đình, thì [Classic Monopoly](/products/188/) là một lựa chọn cực kỳ hấp dẫn, mang đến những giờ phút giải trí vui vẻ cho cả nhà.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Bạn có muốn mình tập trung vào lĩnh vực nào đó cụ thể không, hoặc bạn muốn mình thử tìm hiểu thêm những sản phẩm khác có thể bạn sẽ thích dựa trên những gì bạn đã xem?
+recommender-ai-service-1  | Khách: dựa vào lịch sử mua sắm của tôi cho tôi biết tôi thích gì
+recommender-ai-service-1  | AI: Bạn ơi, thành thật xin lỗi bạn nhiều nhé! Dạo này hệ thống của mình có chút trục trặc nên chưa thống kê được đầy đủ lịch sử mua sắm của bạn. Nhưng đừng lo, mình có thể hỗ trợ bạn bằng cách khác nè.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Nếu bạn muốn mình gợi ý một vài sản phẩm hay ho dựa trên những gì bạn đã xem hoặc thêm vào giỏ hàng gần đây, mình có thể làm được. Ví dụ, mình thấy bạn vừa xem qua [Artisan Stand Mixer](/products/206/) và thậm chí còn thêm nó vào giỏ hàng nữa. Đó có vẻ là một món đồ gia dụng rất tuyệt vời để làm bánh hoặc nấu nướng đúng không nào?
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Hoặc nếu bạn quan tâm đến các trò chơi gia đình, thì [Classic Monopoly](/products/188/) là một lựa chọn cực kỳ hấp dẫn, mang đến những giờ phút giải trí vui vẻ cho cả nhà.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Bạn có muốn mình tập trung vào lĩnh vực nào đó cụ thể không, hoặc bạn muốn mình thử tìm hiểu thêm những sản phẩm khác có thể bạn sẽ thích dựa trên những gì bạn đã xem?
+recommender-ai-service-1  | Khách: dựa vào lịch sử mua sắm của tôi cho tôi biết tôi thích gì
+recommender-ai-service-1  | AI: Bạn ơi, thành thật xin lỗi bạn nhiều nhé! Dạo này hệ thống của mình có chút trục trặc nên chưa thống kê được đầy đủ lịch sử mua sắm của bạn. Nhưng đừng lo, mình có thể hỗ trợ bạn bằng cách khác nè.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Nếu bạn muốn mình gợi ý một vài sản phẩm hay ho dựa trên những gì bạn đã xem hoặc thêm vào giỏ hàng gần đây, mình có thể làm được. Ví dụ, mình thấy bạn vừa xem qua [Artisan Stand Mixer](/products/206/) và thậm chí còn thêm nó vào giỏ hàng nữa. Đó có vẻ là một món đồ gia dụng rất tuyệt vời để làm bánh hoặc nấu nướng đúng không nào?
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Hoặc nếu bạn quan tâm đến các trò chơi gia đình, thì [Classic Monopoly](/products/188/) là một lựa chọn cực kỳ hấp dẫn, mang đến những giờ phút giải trí vui vẻ cho cả nhà.
+recommender-ai-service-1  | 
+recommender-ai-service-1  | Bạn có muốn mình tập trung vào lĩnh vực nào đó cụ thể không, hoặc bạn muốn mình thử tìm hiểu thêm những sản phẩm khác có thể bạn sẽ thích dựa trên những gì bạn đã xem?
+recommender-ai-service-1  | Khách: dựa vào lịch sử mua sắm của tôi cho tôi biết tôi thích gì
+recommender-ai-service-1  | AI:
+recommender-ai-service-1  | --- [AI-DEBUG] END FULL PROMPT ---

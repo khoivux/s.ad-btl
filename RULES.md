@@ -64,6 +64,9 @@ The project follows a **Microservices Architecture** with a central **API Gatewa
 - [x] Create `product-service` with 11 categories support.
 - [x] Migrate `order-service` and `cart-service` from `book_id` to `product_id`.
 - [x] Refactor API Gateway to use Class-Based Views (CBVs).
+- [x] Integrate live `order-service` API calls into the RAG Chatbot (`recommender-ai-service`) to retrieve detailed purchase history and order status.
+- [x] Fix Neo4j graph-based retrieval exception crashes (`TypeError` when product `title` property is `None` in graph nodes).
+- [x] Update chatbot prompt engineering guidelines to prioritize actual transaction logs (MySQL & Neo4j) over loyalty membership points when responding to customer order history inquiries.
 
 ### 🚧 In Progress (Unfinished)
 - [ ] **Frontend Cleanup**: Some templates (`checkout.html`, `search.html`) still use `book.title` or `book.author`. These need to be generalized to `product.name` and dynamic attributes.
@@ -87,6 +90,8 @@ The project follows a **Microservices Architecture** with a central **API Gatewa
 - **Be Aesthetic**: The frontend uses Tailwind CSS with a custom palette (indigo/amber). Keep designs premium and responsive.
 - **Check Dependencies**: Changing a field in `product-service` often requires updates in `catalog-service` (sync) and `api_gateway` (view/template).
 - **RAG & Knowledge Base updates**: The chatbot uses dynamic vector-based RAG. If you modify store policies or product structures, update the corresponding markdown file in `recommender-ai-service/app/kb_docs/` and run the manual re-index endpoint (`POST /api/recommender/index-kb/`) to keep the vector database updated.
+- **Order History & Loyalty Points check**: The chatbot retrieves live purchase status via `order-service` (port 8000) and `Neo4j` queries. Do NOT let the chatbot state that a user has no transaction history based solely on their Loyalty Points being 0. Always parse the injected `DANH SÁCH ĐƠN HÀNG CHI TIẾT (ORDER-SERVICE)` and `LỊCH SỬ MUA SẮM THỰC TẾ (NEO4J)` contexts.
+- **Neo4j Node Validation**: Always validate properties from Neo4j queries (e.g., filter out null/None fields using `isinstance` checks) to prevent `TypeError` during `.join()` operations which crash the entire RAG pipeline.
 
 ---
-*Last Updated: 2026-06-10*
+*Last Updated: 2026-06-13*
