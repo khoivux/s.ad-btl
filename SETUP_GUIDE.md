@@ -20,7 +20,7 @@ Mở Terminal tại thư mục dự án và tạo file môi trường cho AI Ser
 1. Di chuyển vào thư mục AI: `cd recommender-ai-service`
 2. Tạo file `.env` và thêm key của bạn:
    ```env
-   GOOGLE_API_KEY=Cái_Key_AI_Của_Bạn_Tại_Đây
+   GOOGLE_API_KEY=<key_cua_ban>
    ```
 
 ### Bước 2: Khởi động hệ thống Docker
@@ -36,16 +36,21 @@ docker-compose up -d --build
 ## 🧠 3. Khởi tạo dữ liệu & Huấn luyện AI (Bắt buộc)
 Để AI có thể hoạt động, bạn cần nạp dữ liệu mồi và huấn luyện mô hình theo thứ tự sau:
 
-### 1️⃣ Nạp dữ liệu sản phẩm mẫu
+### 1️⃣ Nạp dữ liệu mẫu cho toàn hệ thống (Database Seeding)
+Thay vì nạp thủ công từng dịch vụ, bạn chỉ cần chạy script tự động để nạp dữ liệu cho toàn bộ các Microservices (Users, Products, Orders, Reviews, Neo4j...):
+
 ```powershell
-# Nạp sản phẩm vào Catalog Service
-Invoke-RestMethod -Method Post -Uri "http://localhost:8011/api/catalog/seed-products/"
+# Chạy trực tiếp script bat
+.\db_seeders\run_all_seeds.bat
 ```
+*(Lưu ý: Script này sẽ tự động thiết lập PYTHONPATH và gọi các file Python tương ứng để seed dữ liệu).*
 
 ### 2️⃣ Khởi tạo hành vi & Huấn luyện mô hình LSTM
-AI cần biết người dùng thường xem gì để gợi ý:
+AI cần biết người dùng thường xem gì để gợi ý. 
+*(Mẹo bổ sung: Nếu bạn có sẵn các tập dữ liệu gốc từ Kaggle, bạn có thể dùng file `recommender-ai-service/merge_kaggle_datasets.py` để gộp và chuẩn hóa dữ liệu trước).*
+
 ```powershell
-# Bước A: Tạo dữ liệu giả lập (260 tương tác)
+# Bước A: Trích xuất dữ liệu hành vi giả lập
 Invoke-RestMethod -Method Post -Uri "http://localhost:8010/api/recommender/export-behavior/"
 
 # Bước B: Huấn luyện bộ não AI (Chạy 10 Epochs)
@@ -65,6 +70,7 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:8010/api/recommender/index
 Sau khi hoàn tất các bước trên, bạn có thể trải nghiệm tại:
 
 *   **Trang chủ (Gateway):** [http://localhost:8000](http://localhost:8000)
+*   **Neo4j Graph Browser:** [http://localhost:7474](http://localhost:7474) (Mục Authentication chọn `No authentication`. Dùng lệnh `MATCH (n) RETURN n LIMIT 100` để xem trực quan Mạng lưới Tri thức AI).
 *   **AI Chat Consultant:** Truy cập trang chi tiết sản phẩm và sử dụng khung Chat bên dưới.
 *   **Admin Dashboard:** [http://localhost:8000/admin/](http://localhost:8000/admin/) (Nếu có cấu hình).
 

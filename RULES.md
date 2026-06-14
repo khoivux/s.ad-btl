@@ -67,12 +67,13 @@ The project follows a **Microservices Architecture** with a central **API Gatewa
 - [x] Integrate live `order-service` API calls into the RAG Chatbot (`recommender-ai-service`) to retrieve detailed purchase history and order status.
 - [x] Fix Neo4j graph-based retrieval exception crashes (`TypeError` when product `title` property is `None` in graph nodes).
 - [x] Update chatbot prompt engineering guidelines to prioritize actual transaction logs (MySQL & Neo4j) over loyalty membership points when responding to customer order history inquiries.
+- [x] **Legacy File Cleanup**: Removed old templates (`books.html`, `book_detail.html`) from `api_gateway` and root test files.
+- [x] **Database Seeders Consolidation**: All mock data seeders are now centralized in the `db_seeders/` directory.
 
 ### 🚧 In Progress (Unfinished)
 - [ ] **Frontend Cleanup**: Some templates (`checkout.html`, `search.html`) still use `book.title` or `book.author`. These need to be generalized to `product.name` and dynamic attributes.
 - [ ] **AI Model Integration**: The `recommender-ai-service` is currently being trained with LSTM/RNN models. Integration with the frontend "AI Pick" section is active but may need tuning.
 - [ ] **RAG Chatbot Enhancements**: Upgrading the AI Chatbot to query ChromaDB dynamically using semantic search with L2 similarity filtering (< 0.85). The knowledge base has been modularized into category-specific files (`advice_*.md`) under `recommender-ai-service/app/kb_docs/`.
-- [ ] **Legacy File Removal**: Files like `books.html` or `book_detail.html` in `api_gateway` are deprecated and should be removed once full stability is confirmed.
 
 ---
 
@@ -81,7 +82,8 @@ The project follows a **Microservices Architecture** with a central **API Gatewa
 1. **Spin up the stack**: `docker-compose up --build`.
 2. **Logs**: Use `docker-compose logs -f <service-name>` for debugging.
 3. **Migrations**: Run migrations inside containers: `docker exec -it <container> python manage.py migrate`.
-4. **Documentation**: Refer to `docs/` for detailed migration plans and architecture diagrams.
+4. **Seeding Database**: To seed mock data across all services, run `db_seeders/run_all_seeds.bat` locally.
+5. **Documentation**: Refer to `docs/` for detailed migration plans and architecture diagrams.
 
 ---
 
