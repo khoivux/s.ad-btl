@@ -4,11 +4,12 @@ import pandas as pd
 from django.conf import settings
 
 # --- API Endpoints ---
-CUSTOMER_SERVICE_URL = "http://customer-service:8000"
+CUSTOMER_SERVICE_URL = "http://user-service:8000"
 ORDER_SERVICE_URL = "http://order-service:8000"
 CART_SERVICE_URL = "http://cart-service:8000"
-BOOK_SERVICE_URL = "http://book-service:8000"
+PRODUCT_SERVICE_URL = "http://product-service:8000"
 COMMENT_SERVICE_URL = "http://comment-rate-service:8006"
+INTERACTION_SERVICE_URL = "http://interaction-service:8000"
 
 class BehaviorDataProcessor:
     """
@@ -16,9 +17,9 @@ class BehaviorDataProcessor:
     (user_id, book_id, score) interactions for the ML model.
     """
     def fetch_raw_interactions(self):
-        review_map = {} # (u, b) -> score
-        order_map = {}  # (u, b) -> 5.0
-        cart_map = {}   # (u, b) -> 3.0
+        review_map = {} # (u, p) -> score
+        order_map = {}  # (u, p) -> 5.0
+        cart_map = {}   # (u, p) -> 3.0
         
         # User Context Buckets (for 5 features)
         user_orders_count = {}
@@ -55,7 +56,7 @@ class BehaviorDataProcessor:
                         r_items = requests.get(f"{ORDER_SERVICE_URL}/orders/{o['id']}/", timeout=1)
                         if r_items.status_code == 200:
                             for item in r_items.json().get('items', []):
-                                order_map[(u_id, item['book_id'])] = 4.0 # ORDER IS 4.0
+                                order_map[(u_id, item['product_id'])] = 4.0 # ORDER IS 4.0
                     url = data.get('next')
                 else: url = None
         except: pass
@@ -67,26 +68,33 @@ class BehaviorDataProcessor:
             if r.status_code == 200:
                 for rev in r.json():
                     u_id = rev['customer_id']
-                    review_map[(u_id, rev['book_id'])] = float(rev['rating']) # REVIEW IS 1.0-5.0
+                    review_map[(u_id, rev['product_id'])] = float(rev['rating']) # REVIEW IS 1.0-5.0
                     user_review_count[u_id] = user_review_count.get(u_id, 0) + 1
         except: pass
 
-        # 3. Carts & Interest Stats
-        print("[PROCESSOR] Fetching Carts...")
+        # 3. MongoDB Interactions (Interaction Service)
+        print("[PROCESSOR] Fetching MongoDB Interactions...")
         try:
-            r_cust = requests.get(f"{CUSTOMER_SERVICE_URL}/customers/?page_size=100", timeout=3)
+            r_cust = requests.get(f"{CUSTOMER_SERVICE_URL}/users/?page_size=100", timeout=3)
             if r_cust.status_code == 200:
                 data = r_cust.json()
                 customers = data if isinstance(data, list) else data.get('results', [])
                 for cust in customers:
                     cid = cust['id']
-                    r_cart = requests.get(f"{CART_SERVICE_URL}/carts/{cid}/", timeout=1)
-                    if r_cart.status_code == 200:
-                        items = r_cart.json()
-                        user_cart_count[cid] = len(items)
-                        for c_item in items:
-                            cart_map[(cid, c_item['book_id'])] = 2.0 # CART IS 2.0
-        except: pass
+                    # Fetch from interaction-service
+                    r_logs = requests.get(f"{INTERACTION_SERVICE_URL}/logs/user/{cid}/", timeout=1)
+                    if r_logs.status_code == 200:
+                        logs = r_logs.json()
+                        for log in logs:
+                            pid = log.get('product_id') or log.get('book_id')
+                            if pid:
+                                action = log.get('action', '').upper()
+                                if 'VIEW' in action: score = 1.0
+                                elif 'ADD_TO_CART' in action: score = 2.0
+                                else: score = 1.5
+                                cart_map[(cid, pid)] = score
+        except Exception as e:
+            print(f"[PROCESSOR] MongoDB interaction fetch failed: {e}")
 
         # --- CONSOLIDATION WITH LOG NORMALIZATION ---
         print("[PROCESSOR] Generating Normalized AI Dataset...")
@@ -95,7 +103,7 @@ class BehaviorDataProcessor:
         
         final_list = []
         for pair in all_pairs:
-            u_id, b_id = pair
+            u_id, p_id = pair
             if pair in review_map: s = review_map[pair]
             elif pair in order_map: s = order_map[pair]
             else: s = cart_map[pair]
@@ -108,29 +116,29 @@ class BehaviorDataProcessor:
             ct = min(float(user_cart_count.get(u_id, 0)), 10.0)
             
             final_list.append({
-                'user_id': u_id, 'book_id': b_id, 'behavior_score': s,
+                'user_id': u_id, 'product_id': p_id, 'behavior_score': s,
                 'f_recency': rec, 'f_freq': fq, 'f_spend': sp, 'f_rev_cnt': rv, 'f_cart_cnt': ct
             })
 
         # --- NEGATIVE SAMPLING (Dạy AI cách từ chối) ---
         print("[PROCESSOR] Injecting Negative Samples (Dạy AI biết lắc đầu)...")
         import random
-        all_book_ids = list(set([p[1] for p in all_pairs])) # Simple fallback
+        all_product_ids = list(set([p[1] for p in all_pairs])) # Simple fallback
         try:
-            r_books = requests.get(f"{BOOK_SERVICE_URL}/books/?page_size=100", timeout=3)
-            if r_books.status_code == 200:
-                all_book_ids = [b['id'] for b in r_books.json().get('results', [])]
+            r_products = requests.get(f"{PRODUCT_SERVICE_URL}/products/?page_size=100", timeout=3)
+            if r_products.status_code == 200:
+                all_product_ids = [p['id'] for p in r_products.json().get('results', [])]
         except: pass
 
         unique_users = set([p[0] for p in all_pairs])
         negative_list = []
         for u_id in unique_users:
             user_interacted = set([p[1] for p in all_pairs if p[0] == u_id])
-            candidate_negatives = list(set(all_book_ids) - user_interacted)
+            candidate_negatives = list(set(all_product_ids) - user_interacted)
             
             if candidate_negatives:
                 selected_negs = random.sample(candidate_negatives, min(len(candidate_negatives), 3))
-                for neg_b_id in selected_negs:
+                for neg_p_id in selected_negs:
                     # Context for this user
                     rec = round(math.log1p(float(user_last_order_date.get(u_id, 365))), 4)
                     fq = min(float(user_orders_count.get(u_id, 0)), 50.0)
@@ -139,7 +147,7 @@ class BehaviorDataProcessor:
                     ct = min(float(user_cart_count.get(u_id, 0)), 10.0)
 
                     negative_list.append({
-                        'user_id': u_id, 'book_id': neg_b_id, 'behavior_score': 0.0,
+                        'user_id': u_id, 'product_id': neg_p_id, 'behavior_score': 0.0,
                         'f_recency': rec, 'f_freq': fq, 'f_spend': sp, 'f_rev_cnt': rv, 'f_cart_cnt': ct
                     })
 

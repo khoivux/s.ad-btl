@@ -31,8 +31,9 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    book_id = models.IntegerField()
-    book_title = models.CharField(max_length=255, default='')  # Snapshot
+    product_id = models.IntegerField()
+    product_name = models.CharField(max_length=255, default='')  # Snapshot
+    item_image_url = models.TextField(blank=True, default='')   # Snapshot
     quantity = models.IntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)  # Snapshot price
 
@@ -41,14 +42,14 @@ class OrderItem(models.Model):
         return self.quantity * self.unit_price
 
     def __str__(self):
-        return f"OrderItem #{self.id} - Book {self.book_id} x{self.quantity}"
+        return f"OrderItem #{self.id} - Product {self.product_id} x{self.quantity}"
 
 class Voucher(models.Model):
     code = models.CharField(max_length=100, unique=True)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2)
     is_percentage = models.BooleanField(default=False)
     min_spend = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    min_points_level_id = models.IntegerField(null=True, blank=True, help_text="MembershipLevel ID from customer-service")
+    min_points_level_id = models.IntegerField(null=True, blank=True, help_text="MembershipLevel ID from user-service")
     point_cost = models.IntegerField(default=0)
     max_quantity = models.IntegerField(default=100)
     redeemed_quantity = models.IntegerField(default=0)

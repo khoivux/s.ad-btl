@@ -60,6 +60,20 @@ class ShipmentStatusUpdate(APIView):
             valid = [s[0] for s in Shipment.STATUS_CHOICES]
             if new_status not in valid:
                 return Response({'error': f'Invalid status. Must be: {valid}'}, status=400)
+
+            # Enforce state machine transitions for shipper
+            allowed_transitions = {
+                'ready_for_pickup': ['delivering', 'cancelled'],
+                'delivering': ['completed', 'cancelled'],
+                'completed': [],
+                'cancelled': []
+            }
+            
+            if shipment.status != new_status and new_status not in allowed_transitions.get(shipment.status, []):
+                return Response({
+                    'error': f'Luật chuyển trạng thái không cho phép: không thể chuyển từ "{shipment.status}" sang "{new_status}"'
+                }, status=400)
+
             shipment.status = new_status
             shipment.save()
             print(f"[ship-service] Shipment {pk} status updated to: {new_status}")

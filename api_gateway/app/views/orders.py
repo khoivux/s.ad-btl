@@ -7,9 +7,9 @@ from django.utils.decorators import method_decorator
 from .base import BaseProxyView, CustomerRequiredMixin
 
 CART_SERVICE_URL = "http://cart-service:8000"
-BOOK_SERVICE_URL = "http://book-service:8000"
+PRODUCT_SERVICE_URL = "http://product-service:8000"
 ORDER_SERVICE_URL = "http://order-service:8000"
-CUSTOMER_SERVICE_URL = "http://customer-service:8000"
+USER_SERVICE_URL = "http://user-service:8000"
 SHIP_SERVICE_URL = "http://ship-service:8000"
 
 class CheckoutPageView(CustomerRequiredMixin, BaseProxyView):
@@ -25,17 +25,18 @@ class CheckoutPageView(CustomerRequiredMixin, BaseProxyView):
             raw_items = r.json() if r and r.status_code == 200 else []
             
             for item in raw_items:
-                self.service_url = BOOK_SERVICE_URL
-                book_r = self.proxy_request(request, f"books/{item['book_id']}/", method="GET")
-                book = book_r.json() if book_r and book_r.status_code == 200 else {}
+                self.service_url = PRODUCT_SERVICE_URL
+                prod_r = self.proxy_request(request, f"products/{item['product_id']}/", method="GET")
+                product = prod_r.json() if prod_r and prod_r.status_code == 200 else {}
                 
-                subtotal = float(book.get('price', 0)) * item['quantity']
+                subtotal = float(product.get('price', 0)) * item['quantity']
                 total += subtotal
                 cart_items.append({
-                    'book_id': item['book_id'],
-                    'title': book.get('title', ''),
-                    'author': book.get('author', ''),
-                    'price': book.get('price', 0),
+                    'product_id': item['product_id'],
+                    'name': product.get('name', ''),
+                    'category_name': product.get('category_name', ''),
+                    'image_url': product.get('image_url', ''),
+                    'price': product.get('price', 0),
                     'quantity': item['quantity'],
                     'subtotal': round(subtotal, 2),
                 })
@@ -45,16 +46,16 @@ class CheckoutPageView(CustomerRequiredMixin, BaseProxyView):
         # Fetch addresses
         addresses = []
         try:
-            self.service_url = CUSTOMER_SERVICE_URL
-            addr_r = self.proxy_request(request, f"customers/{customer_id}/addresses/", method="GET")
+            self.service_url = USER_SERVICE_URL
+            addr_r = self.proxy_request(request, f"users/{customer_id}/addresses/", method="GET")
             addresses = addr_r.json() if addr_r and addr_r.status_code == 200 else []
         except Exception: pass
 
         # Fetch customer details
         customer = {}
         try:
-            self.service_url = CUSTOMER_SERVICE_URL
-            cust_r = self.proxy_request(request, f"customers/{customer_id}/", method="GET")
+            self.service_url = USER_SERVICE_URL
+            cust_r = self.proxy_request(request, f"users/{customer_id}/", method="GET")
             customer = cust_r.json() if cust_r and cust_r.status_code == 200 else {}
         except Exception: pass
 
@@ -147,9 +148,17 @@ class CheckoutApiView(CustomerRequiredMixin, BaseProxyView):
         
         if r and r.status_code in (200, 201):
             try:
+                # Log Purchase behavior
+                from django.conf import settings
+                order_data = r.json()
+                requests.post(
+                    f"{settings.INTERACTION_SERVICE_URL}/logs/",
+                    json={'customer_id': customer_id, 'action_type': 'PURCHASE', 'order_id': order_data.get('id')},
+                    timeout=2
+                )
                 requests.delete(f"{CART_SERVICE_URL}/carts/{customer_id}/clear/")
             except Exception as e:
-                print(f"[{self.__class__.__name__}] clear cart error: {e}")
+                print(f"[{self.__class__.__name__}] clear cart/log error: {e}")
             return JsonResponse(r.json(), status=r.status_code)
         elif r:
             return JsonResponse(r.json(), status=r.status_code)

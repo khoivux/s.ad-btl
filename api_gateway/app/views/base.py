@@ -8,6 +8,12 @@ class BaseProxyView(View):
     def proxy_request(self, request, path, method="GET", payload=None):
         url = f"{self.service_url}/{path}"
         headers = {'Content-Type': 'application/json'}
+        
+        # Inject JWT Access Token from session if exists
+        token = request.session.get('jwt_access')
+        if token:
+            headers['Authorization'] = f"Bearer {token}"
+            
         try:
             if method == "GET":
                 response = requests.get(url, params=request.GET, headers=headers, timeout=30)

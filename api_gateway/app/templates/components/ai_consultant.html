@@ -89,6 +89,17 @@
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     }
 
+    .message.assistant a {
+        color: #6366f1;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s ease;
+    }
+
+    .message.assistant a:hover {
+        color: #4f46e5;
+    }
+
     #chat-input-area {
         padding: 15px;
         border-top: 1px solid #eef2f6;
@@ -122,6 +133,16 @@
         font-size: 0.8rem;
         color: #94a3b8;
     }
+
+    /* Responsive styling for mobile screens */
+    @media (max-width: 540px) {
+        #chat-box {
+            width: calc(100vw - 40px) !important;
+            height: calc(100vh - 120px) !important;
+            bottom: 80px !important;
+            right: 0 !important;
+        }
+    }
 </style>
 
 <!-- Load FontAwesome if missing -->
@@ -143,7 +164,7 @@
         </div>
 
         <div id="chat-messages">
-            <div class="message assistant">Chào bạn! Tôi là chuyên gia tư vấn sách. Tôi có thể giúp gì cho bạn?</div>
+            <div class="message assistant">Chào bạn! Tôi là chuyên gia tư vấn sản phẩm của MicroStore. Tôi có thể giúp gì cho bạn?</div>
             <div id="typing-indicator" class="typing-skeleton">Chờ tôi một chút...</div>
         </div>
 
@@ -153,6 +174,22 @@
                 <button type="submit">Gửi</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Product Preview Tooltip -->
+<div id="product-tooltip" style="display: none; position: fixed; z-index: 10000; pointer-events: none;" class="w-80 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-2xl p-4 flex gap-3 transition-all duration-200 opacity-0 transform translate-y-2">
+    <div class="w-20 h-20 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0 border border-slate-200">
+        <img id="tooltip-image" src="" alt="" class="w-full h-full object-cover">
+    </div>
+    <div class="flex-1 flex flex-col min-w-0">
+        <span id="tooltip-category" class="inline-block self-start px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-wider rounded mb-1">Category</span>
+        <h4 id="tooltip-name" class="text-sm font-bold text-slate-800 leading-snug truncate">Product Name</h4>
+        <p id="tooltip-description" class="text-[11px] text-slate-500 line-clamp-2 mt-0.5">Description...</p>
+        <div class="mt-auto flex items-baseline gap-1">
+            <span class="text-xs text-slate-400 font-medium">Price:</span>
+            <span id="tooltip-price" class="text-sm font-black text-indigo-600">$0.00</span>
+        </div>
     </div>
 </div>
 
@@ -223,6 +260,17 @@
 
         // Basic Markdown Parser (Bold)
         htmlContent = htmlContent.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+        // Basic Markdown Parser (Links: [text](url)) - Opens in new tab
+        // Enhanced: Match /products/(\d+)/ to inject data-product-id and product-link class
+        htmlContent = htmlContent.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+            const m = url.match(/\/products\/(\d+)\/?/);
+            if (m) {
+                return `<a href="${url}" target="_blank" class="product-link" data-product-id="${m[1]}">${text}</a>`;
+            }
+            return `<a href="${url}" target="_blank">${text}</a>`;
+        });
+
         div.innerHTML = htmlContent;
     }
 
@@ -268,5 +316,90 @@
             appendMessage('assistant', "Rất tiếc, tôi đang gặp lỗi kết nối dòng dữ liệu.");
             console.error("Stream failed", err);
         }
+    });
+
+    // Tooltip Hover Logic
+    const tooltip = document.getElementById('product-tooltip');
+    const tooltipImg = document.getElementById('tooltip-image');
+    const tooltipCat = document.getElementById('tooltip-category');
+    const tooltipName = document.getElementById('tooltip-name');
+    const tooltipDesc = document.getElementById('tooltip-description');
+    const tooltipPrice = document.getElementById('tooltip-price');
+
+    const productCache = {};
+    let hoverTimeout = null;
+
+    chatMessages.addEventListener('mouseover', async (e) => {
+        const link = e.target.closest('.product-link');
+        if (!link) return;
+
+        const productId = link.getAttribute('data-product-id');
+        if (!productId) return;
+
+        if (hoverTimeout) clearTimeout(hoverTimeout);
+
+        const rect = link.getBoundingClientRect();
+        
+        // Show tooltip loading state
+        tooltipImg.src = '';
+        tooltipCat.textContent = 'Loading...';
+        tooltipName.textContent = 'Đang tải thông tin...';
+        tooltipDesc.textContent = '';
+        tooltipPrice.textContent = '';
+        
+        tooltip.style.display = 'flex';
+        tooltip.style.left = `${rect.left}px`;
+        tooltip.style.top = `${rect.top - 120}px`;
+        
+        void tooltip.offsetWidth; // trigger reflow
+        tooltip.classList.remove('opacity-0', 'translate-y-2');
+        tooltip.classList.add('opacity-100', 'translate-y-0');
+
+        try {
+            let pData = productCache[productId];
+            if (!pData) {
+                const res = await fetch(`/api/products/${productId}/preview/`);
+                if (res.ok) {
+                    pData = await res.json();
+                    productCache[productId] = pData;
+                }
+            }
+
+            if (pData && e.target.closest('.product-link') === link) {
+                tooltipImg.src = pData.image_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=100';
+                tooltipCat.textContent = pData.category_name || 'Product';
+                tooltipName.textContent = pData.name;
+                tooltipDesc.textContent = pData.description || 'Chưa có mô tả chi tiết cho sản phẩm này.';
+                tooltipPrice.textContent = `$${pData.price}`;
+                
+                const tRect = tooltip.getBoundingClientRect();
+                tooltip.style.top = `${rect.top - tRect.height - 10}px`;
+                
+                let left = rect.left + (rect.width - tRect.width) / 2;
+                if (left < 10) left = 10;
+                if (left + tRect.width > window.innerWidth - 10) {
+                    left = window.innerWidth - tRect.width - 10;
+                }
+                tooltip.style.left = `${left}px`;
+            }
+        } catch (err) {
+            console.error("Preview load failed", err);
+        }
+    });
+
+    chatMessages.addEventListener('mouseout', (e) => {
+        const link = e.target.closest('.product-link');
+        if (!link) return;
+
+        if (hoverTimeout) clearTimeout(hoverTimeout);
+        hoverTimeout = setTimeout(() => {
+            tooltip.classList.remove('opacity-100', 'translate-y-0');
+            tooltip.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => {
+                if (tooltip.classList.contains('opacity-0')) {
+                    tooltip.style.display = 'none';
+                }
+            }, 200);
+        }, 150);
     });
 </script>

@@ -6,14 +6,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .base import BaseProxyView, CustomerRequiredMixin
 
-CUSTOMER_SERVICE_URL = "http://customer-service:8000"
+USER_SERVICE_URL = "http://user-service:8000"
 
 class ProfileView(CustomerRequiredMixin, BaseProxyView):
-    service_url = CUSTOMER_SERVICE_URL
+    service_url = USER_SERVICE_URL
 
     def get(self, request):
         customer_id = request.session['customer_id']
-        r = self.proxy_request(request, f"customers/{customer_id}/", method="GET")
+        r = self.proxy_request(request, f"users/{customer_id}/", method="GET")
         customer_data = r.json() if r and r.status_code == 200 else {}
 
         return render(request, "profile.html", {
@@ -25,7 +25,7 @@ class ProfileView(CustomerRequiredMixin, BaseProxyView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ProfileApiView(CustomerRequiredMixin, BaseProxyView):
-    service_url = CUSTOMER_SERVICE_URL
+    service_url = USER_SERVICE_URL
 
     def put(self, request):
         return self._handle_update(request)
@@ -37,7 +37,7 @@ class ProfileApiView(CustomerRequiredMixin, BaseProxyView):
         customer_id = request.session['customer_id']
         try:
             data = json.loads(request.body)
-            r = self.proxy_request(request, f"customers/{customer_id}/", method="PUT", payload=data)
+            r = self.proxy_request(request, f"users/{customer_id}/", method="PUT", payload=data)
             if not r:
                 return JsonResponse({'error': 'Service Unavailable'}, status=503)
                 
@@ -52,7 +52,7 @@ class ProfileApiView(CustomerRequiredMixin, BaseProxyView):
 
 
 class LoginView(BaseProxyView):
-    service_url = CUSTOMER_SERVICE_URL
+    service_url = USER_SERVICE_URL
 
     def get(self, request):
         return render(request, "login.html")
@@ -62,12 +62,14 @@ class LoginView(BaseProxyView):
         password = request.POST.get('password')
         payload = {"email": email, "password": password}
         
-        r = self.proxy_request(request, "customers/login/", method="POST", payload=payload)
+        r = self.proxy_request(request, "users/login/", method="POST", payload=payload)
         
         if r and r.status_code == 200:
             user_data = r.json()
             request.session['customer_id'] = user_data['id']
-            request.session['customer_name'] = user_data['name']
+            request.session['customer_name'] = user_data['username'] # User model has username
+            request.session['jwt_access'] = user_data['access']
+            request.session['jwt_refresh'] = user_data['refresh']
             return redirect('book_list')
         elif r:
             return render(request, "login.html", {"error": "Invalid email or password"})
@@ -76,7 +78,7 @@ class LoginView(BaseProxyView):
 
 
 class RegisterView(BaseProxyView):
-    service_url = CUSTOMER_SERVICE_URL
+    service_url = USER_SERVICE_URL
 
     def get(self, request):
         return render(request, "register.html")
@@ -89,7 +91,7 @@ class RegisterView(BaseProxyView):
             "password": request.POST.get('password')
         }
         
-        r = self.proxy_request(request, "customers/", method="POST", payload=payload)
+        r = self.proxy_request(request, "users/", method="POST", payload=payload)
         
         if r and r.status_code in (200, 201):
             return redirect('login')
@@ -108,10 +110,10 @@ class LogoutView(BaseProxyView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AddressApiListView(BaseProxyView):
-    service_url = CUSTOMER_SERVICE_URL
+    service_url = USER_SERVICE_URL
 
     def get(self, request, customer_id):
-        r = self.proxy_request(request, f"customers/{customer_id}/addresses/", method="GET")
+        r = self.proxy_request(request, f"users/{customer_id}/addresses/", method="GET")
         if not r:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         return JsonResponse(r.json(), safe=False)
@@ -119,7 +121,7 @@ class AddressApiListView(BaseProxyView):
     def post(self, request, customer_id):
         try:
             data = json.loads(request.body)
-            r = self.proxy_request(request, f"customers/{customer_id}/addresses/", method="POST", payload=data)
+            r = self.proxy_request(request, f"users/{customer_id}/addresses/", method="POST", payload=data)
             if not r:
                 return JsonResponse({'error': 'Service Unavailable'}, status=503)
             return JsonResponse(r.json(), status=r.status_code)
@@ -129,10 +131,10 @@ class AddressApiListView(BaseProxyView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AddressApiDetailView(BaseProxyView):
-    service_url = CUSTOMER_SERVICE_URL
+    service_url = USER_SERVICE_URL
 
     def delete(self, request, customer_id, pk):
-        r = self.proxy_request(request, f"customers/{customer_id}/addresses/{pk}/", method="DELETE")
+        r = self.proxy_request(request, f"users/{customer_id}/addresses/{pk}/", method="DELETE")
         if not r:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         return JsonResponse({'status': 'deleted'}, status=204)
@@ -146,7 +148,7 @@ class AddressApiDetailView(BaseProxyView):
     def _handle_update(self, request, customer_id, pk, method):
         try:
             data = json.loads(request.body)
-            r = self.proxy_request(request, f"customers/{customer_id}/addresses/{pk}/", method=method, payload=data)
+            r = self.proxy_request(request, f"users/{customer_id}/addresses/{pk}/", method=method, payload=data)
             if not r:
                 return JsonResponse({'error': 'Service Unavailable'}, status=503)
             return JsonResponse(r.json(), status=r.status_code)
@@ -156,13 +158,13 @@ class AddressApiDetailView(BaseProxyView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PointTransactionApiView(CustomerRequiredMixin, BaseProxyView):
-    service_url = CUSTOMER_SERVICE_URL
+    service_url = USER_SERVICE_URL
 
     def get(self, request):
         customer_id = request.session['customer_id']
         page = request.GET.get('page', 1)
         # Use simple string interpolation for params since we only have one
-        r = self.proxy_request(request, f"customers/{customer_id}/wallet/transactions/?page={page}", method="GET")
+        r = self.proxy_request(request, f"users/{customer_id}/wallet/transactions/?page={page}", method="GET")
         if not r:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         return JsonResponse(r.json(), safe=False)
@@ -170,11 +172,11 @@ class PointTransactionApiView(CustomerRequiredMixin, BaseProxyView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ChatHistoryApiView(CustomerRequiredMixin, BaseProxyView):
-    service_url = CUSTOMER_SERVICE_URL
-
     def get(self, request):
+        from django.conf import settings
+        self.service_url = settings.INTERACTION_SERVICE_URL
         customer_id = request.session['customer_id']
-        r = self.proxy_request(request, f"customers/{customer_id}/chat-messages/", method="GET")
+        r = self.proxy_request(request, f"chat-messages/{customer_id}/", method="GET")
         if not r:
             return JsonResponse({'error': 'Service Unavailable'}, status=503)
         return JsonResponse(r.json(), safe=False)
@@ -213,4 +215,23 @@ class ChatConsultantApiView(CustomerRequiredMixin, BaseProxyView):
             return response
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RecommenderProxyView(BaseProxyView):
+    service_url = "http://recommender-ai-service:8000"
+
+    def post(self, request, path):
+        r = self.proxy_request(request, f"api/{path}", method="POST", payload=json.loads(request.body) if request.body else {})
+        if not r:
+            return JsonResponse({'error': 'Service Unavailable'}, status=503)
+        return JsonResponse(r.json(), status=r.status_code, safe=False)
+
+    def get(self, request, path):
+        r = self.proxy_request(request, f"api/{path}", method="GET")
+        if not r:
+            return JsonResponse({'error': 'Service Unavailable'}, status=503)
+        try:
+            return JsonResponse(r.json(), status=r.status_code, safe=False)
+        except:
+            return JsonResponse({'error': 'Invalid Response'}, status=502)
 

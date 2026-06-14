@@ -1,6 +1,6 @@
-# CHÍNH SÁCH VẬN CHUYỂN TẠI MICROBOOK
+# CHÍNH SÁCH VẬN CHUYỂN TẠI MICROSTORE
 
-Chào mừng bạn đến với hệ thống vận chuyển của MicroBook. Chúng tôi cung cấp các tùy chọn giao hàng linh hoạt để đảm bảo sách đến tay bạn nhanh chóng và an toàn nhất.
+Chào mừng bạn đến với hệ thống vận chuyển của MicroStore. Chúng tôi cung cấp các tùy chọn giao hàng linh hoạt để đảm bảo sản phẩm đến tay bạn nhanh chóng và an toàn nhất.
 
 ## 1. Các phương thức vận chuyển
 Hiện tại chúng tôi cung cấp đầy đủ 4 phương thức vận chuyển để đáp ứng mọi nhu cầu của bạn:
