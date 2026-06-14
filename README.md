@@ -62,9 +62,10 @@ Sau khi nạp dữ liệu, bạn cần kích hoạt nơ-ron AI để Chatbot th�
 ## 📚 Tài Liệu Hướng Dẫn (Documentation)
 Để hiểu sâu hơn về quy trình phát triển và các chuẩn mực của project, vui lòng đọc các tài liệu sau:
 
+- 🎓 **[Báo Cáo Tiểu Luận (PDF)](./docs/tieuluanfinal.pdf)**: Báo cáo tổng kết đồ án trình bày chi tiết về kiến trúc hệ thống, thuật toán AI (LSTM, RAG) và kết quả nghiên cứu.
 - 📖 **[SETUP_GUIDE.md](./SETUP_GUIDE.md)**: Hướng dẫn cài đặt, cấu hình biến môi trường (`GOOGLE_API_KEY`) và các lệnh Call API khởi tạo AI.
 - 📜 **[RULES.md](./RULES.md)**: Các quy tắc lập trình nội bộ (Coding Conventions), Nhật ký thay đổi (Changelog) và tiến độ dọn dẹp hệ thống.
-- 🏗️ **`docs/`**: Chứa sơ đồ luồng dữ liệu (Data Flow) và cấu trúc triển khai.
+- 🏗️ **`docs/`**: Chứa sơ đồ luồng dữ liệu (Data Flow) và cấu trúc triển khai kỹ thuật bổ sung.
 
 ---
 *14/06/2026*
